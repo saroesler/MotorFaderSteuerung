@@ -8,10 +8,11 @@
 #include "uartVar.h"
 #include "uart.h"
 
+volatile uint8_t interrupt = 1;
+
 ISR(USART_RXC_vect)
 {
 	uartFlag &=~ (1<<NEWRECEIVED);
-	//numInMessage = 0;
 
 	char data = UDR;
 
@@ -21,7 +22,6 @@ ISR(USART_RXC_vect)
 	if(data == '\0'){
 		numInMessage = iInMessage;
 		uartFlag |= (1 << NEWRECEIVED);
-		//iInMessage = 0;
 	}
 }
 
@@ -37,10 +37,11 @@ ISR(USART_TXC_vect)
 		//Ende senden
 		iOutMessage ++;
 		UDR = '\0';
-		uartFlag |= (1<<SENDET);
 	//Ende senden
 	} else {
+		iOutMessage = 0;
 		uartFlag |= (1<<SENDET);
+		outMessage[0] = '\0';
 	}
 }
 

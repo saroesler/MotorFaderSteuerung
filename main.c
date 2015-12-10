@@ -42,7 +42,7 @@ int main(void){
 	iOutMessage = 0;
 	sendMessage();
 
-	while(!(uartFlag & (1<<SENDET)));
+	//while(!(uartFlag & (1<<SENDET)));TODO
 
 	_delay_ms(1000);
 	/*uint8_t mask = 0;
@@ -93,13 +93,7 @@ int main(void){
 
 			PORTB &= ~(1<<0);
 
-			strcpy(outMessage, inMessage);
-
-			iOutMessage = 0;
-			numOutMessage = strlen(outMessage);
-			sendMessage();
-
-			while(!(uartFlag & (1<<SENDET)));
+			_delay_ms(10);
 
 			switch(inMessage[0]){
 				case 'm':
@@ -130,7 +124,7 @@ int main(void){
 						//Faderwert ausschneiden
 						pt2 = strstr(pt1, ";");
 
-						if(pt1 == NULL){
+						if(pt2 == NULL){
 							strncpy( subbuff, (pt1 + 1), (inMessage + numInMessage - pt1 -1) );
 						} else {
 							strncpy( subbuff, (pt1 + 1), (pt2 - pt1 -1) );
@@ -138,7 +132,6 @@ int main(void){
 						subbuff[4] = '\0';
 
 						uint8_t value = atoi(subbuff);
-						iInMessage = 0;
 
 						gotoPosition(num, value);
 					}
@@ -152,8 +145,8 @@ int main(void){
 					break;
 
 			}
-			iInMessage = 0;
 			inMessage[0] = '\0';
+			iInMessage = 0;
 			uartFlag &= ~(1 << NEWRECEIVED);
 		}
 
@@ -182,11 +175,6 @@ int main(void){
 #else
 			if(adcData[i][CHANGED] == 1 && fader[i].flag & (1<< CLEARDATA1) && allowSending){
 #endif
-				//TODO nur zum Testen
-				while (!(UCSRA & (1<<UDRE)))  // warten bis Senden moeglich
-				{
-				}
-				UDR = 'a';	//sendet a, wenn motor nicht an war
 
 				//Trennzeichen im String
 				if(strlen(outMessage) > 0)
@@ -197,7 +185,6 @@ int main(void){
 				itoa(adcData[i][ACT], Buffer, 10);
 				strcat(outMessage, Buffer);	//geht immer
 
-				iOutMessage = 0;
 				numOutMessage = strlen(outMessage);
 
 				adcData[i][CHANGED] = 0;
@@ -209,7 +196,7 @@ int main(void){
 		if(newMessage && allowSending){
 			sendMessage();
 
-			while(!(uartFlag & (1<<SENDET))); //TODO
+			while(!(uartFlag & (1<<SENDET)));
 			outMessage[0] = '\0';
 			newMessage = 0;
 		}

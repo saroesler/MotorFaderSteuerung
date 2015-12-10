@@ -26,6 +26,8 @@ extern volatile uint8_t numInMessage;
 //status flag für Uart
 extern volatile uint8_t uartFlag;
 
+extern volatile uint8_t interrupt;
+
 
 extern volatile char outMessage[20];
 extern volatile char inMessage[20];
