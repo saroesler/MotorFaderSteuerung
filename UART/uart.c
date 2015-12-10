@@ -16,12 +16,14 @@ ISR(USART_RXC_vect)
 
 	char data = UDR;
 
-	inMessage[iInMessage] = data;
-	iInMessage ++;
+	if(data == '\0' || (data >= 0x20 && data <= 0x7d)){
+		inMessage[iInMessage] = data;
+		iInMessage ++;
 
-	if(data == '\0'){
-		numInMessage = iInMessage;
-		uartFlag |= (1 << NEWRECEIVED);
+		if(data == '\0'){
+			numInMessage = iInMessage;
+			uartFlag |= (1 << NEWRECEIVED);
+		}
 	}
 }
 

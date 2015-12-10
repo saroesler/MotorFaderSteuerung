@@ -295,76 +295,76 @@ END GROUP
                 0x000000000000005e                . = ALIGN (0x2)
  *(.text.*)
  .text.__vector_11
-                0x000000000000005e       0x5c ./UART/uart.o
+                0x000000000000005e       0x68 ./UART/uart.o
                 0x000000000000005e                __vector_11
  .text.__vector_13
-                0x00000000000000ba       0x7e ./UART/uart.o
-                0x00000000000000ba                __vector_13
+                0x00000000000000c6       0x7e ./UART/uart.o
+                0x00000000000000c6                __vector_13
  .text.uart_init
-                0x0000000000000138       0x14 ./UART/uart.o
-                0x0000000000000138                uart_init
+                0x0000000000000144       0x14 ./UART/uart.o
+                0x0000000000000144                uart_init
  .text.sendMessage
-                0x000000000000014c       0x34 ./UART/uart.o
-                0x000000000000014c                sendMessage
+                0x0000000000000158       0x34 ./UART/uart.o
+                0x0000000000000158                sendMessage
  .text.startMotor
-                0x0000000000000180       0xd4 ./Motor/motor.o
-                0x0000000000000180                startMotor
+                0x000000000000018c       0xd4 ./Motor/motor.o
+                0x000000000000018c                startMotor
  .text.stopMotor
-                0x0000000000000254       0x7c ./Motor/motor.o
-                0x0000000000000254                stopMotor
- .text.stopAll  0x00000000000002d0       0x18 ./Motor/motor.o
-                0x00000000000002d0                stopAll
+                0x0000000000000260       0x7c ./Motor/motor.o
+                0x0000000000000260                stopMotor
+ .text.stopAll  0x00000000000002dc       0x18 ./Motor/motor.o
+                0x00000000000002dc                stopAll
  .text.init_shift
-                0x00000000000002e8        0x8 ./Motor/shift.o
-                0x00000000000002e8                init_shift
- .text.shift    0x00000000000002f0       0x5a ./Motor/shift.o
-                0x00000000000002f0                shift
- .text.initSPI  0x000000000000034a       0x2a ./ADC_MCP/adc_mcp.o
-                0x000000000000034a                initSPI
+                0x00000000000002f4        0x8 ./Motor/shift.o
+                0x00000000000002f4                init_shift
+ .text.shift    0x00000000000002fc       0x5a ./Motor/shift.o
+                0x00000000000002fc                shift
+ .text.initSPI  0x0000000000000356       0x2a ./ADC_MCP/adc_mcp.o
+                0x0000000000000356                initSPI
  .text.startMeassure
-                0x0000000000000374       0x1e ./ADC_MCP/adc_mcp.o
-                0x0000000000000374                startMeassure
+                0x0000000000000380       0x1e ./ADC_MCP/adc_mcp.o
+                0x0000000000000380                startMeassure
  .text.__vector_10
-                0x0000000000000392       0xf8 ./ADC_MCP/adc_mcp.o
-                0x0000000000000392                __vector_10
+                0x000000000000039e       0xf8 ./ADC_MCP/adc_mcp.o
+                0x000000000000039e                __vector_10
  .text.newMessage
-                0x000000000000048a        0x6 ./ADC_MCP/adc_mcp.o
-                0x000000000000048a                newMessage
+                0x0000000000000496        0x6 ./ADC_MCP/adc_mcp.o
+                0x0000000000000496                newMessage
  .text.getMeassure
-                0x0000000000000490        0xe ./ADC_MCP/adc_mcp.o
-                0x0000000000000490                getMeassure
+                0x000000000000049c        0xe ./ADC_MCP/adc_mcp.o
+                0x000000000000049c                getMeassure
  .text.readMeassure
-                0x000000000000049e       0x6c ./ADC_MCP/adc_mcp.o
-                0x000000000000049e                readMeassure
+                0x00000000000004aa       0x6c ./ADC_MCP/adc_mcp.o
+                0x00000000000004aa                readMeassure
  .text.__vector_6
-                0x000000000000050a       0x24 ./fader.o
-                0x000000000000050a                __vector_6
+                0x0000000000000516       0x24 ./fader.o
+                0x0000000000000516                __vector_6
  .text.setTimer
-                0x000000000000052e      0x2ee ./fader.o
-                0x000000000000052e                setTimer
+                0x000000000000053a      0x2ee ./fader.o
+                0x000000000000053a                setTimer
  .text.workFader
-                0x000000000000081c      0x1f4 ./fader.o
-                0x000000000000081c                workFader
+                0x0000000000000828      0x1f4 ./fader.o
+                0x0000000000000828                workFader
  .text.gotoPosition
-                0x0000000000000a10      0x11a ./fader.o
-                0x0000000000000a10                gotoPosition
+                0x0000000000000a1c      0x11a ./fader.o
+                0x0000000000000a1c                gotoPosition
  .text.readFader
-                0x0000000000000b2a       0x56 ./fader.o
-                0x0000000000000b2a                readFader
+                0x0000000000000b36       0x56 ./fader.o
+                0x0000000000000b36                readFader
  .text.initFader
-                0x0000000000000b80       0x90 ./fader.o
-                0x0000000000000b80                initFader
+                0x0000000000000b8c       0x90 ./fader.o
+                0x0000000000000b8c                initFader
  .text.testFader
-                0x0000000000000c10       0xda ./fader.o
-                0x0000000000000c10                testFader
- .text.init     0x0000000000000cea        0xa ./main.o
-                0x0000000000000cea                init
+                0x0000000000000c1c       0xda ./fader.o
+                0x0000000000000c1c                testFader
+ .text.init     0x0000000000000cf6        0xa ./main.o
+                0x0000000000000cf6                init
  .text.minisend
-                0x0000000000000cf4        0x2 ./main.o
-                0x0000000000000cf4                minisend
+                0x0000000000000d00        0x2 ./main.o
+                0x0000000000000d00                minisend
  .text.startup.main
-                0x0000000000000cf6      0x20a ./main.o
-                0x0000000000000cf6                main
+                0x0000000000000d02      0x1fe ./main.o
+                0x0000000000000d02                main
  .text.libgcc.mul
                 0x0000000000000f00        0x0 /usr/lib/gcc/avr/4.8.2/avr4/libgcc.a(_udivmodqi4.o)
  .text.libgcc.div

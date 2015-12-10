@@ -93,7 +93,7 @@ int main(void){
 
 			PORTB &= ~(1<<0);
 
-			_delay_ms(10);
+			//_delay_ms(10);
 
 			switch(inMessage[0]){
 				case 'm':
