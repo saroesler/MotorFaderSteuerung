@@ -16,7 +16,7 @@ static uint8_t new = 0;
 //status der Übertragung
 static volatile uint8_t state = 0;
 
-volatile uint8_t adcData[CHANNEL][7];
+volatile uint8_t adcData[CHANNEL][8];
 static volatile uint8_t oldData;
 static volatile uint8_t counter;
 
@@ -37,6 +37,7 @@ void initSPI(){
 		adcData[i][ADCNEWVALUE] = 0;
 		adcData[i][TEMPVALUE] = 0;
 		adcData[i][COUNTER] = 0;
+		adcData[i][ADCREAL] = 0;
 	}
 
 	sei();
@@ -74,7 +75,8 @@ ISR(SPI_STC_vect){
 		if(pin){
 			lastPin = pin -1;
 		}
-		adcData[lastPin][ADCNEWVALUE] = meassure >> 4;
+		adcData[lastPin][ADCNEWVALUE] = ((meassure >> 4) - fader[pin].minvalue) * (float)(fader[pin].maxvalue / 255.0);
+		adcData[lastPin][ADCREAL] = meassure >> 4;
 		adcData[lastPin][NEWVALUEFLAG] = 1;
 
 		//nächsten Wert speichern

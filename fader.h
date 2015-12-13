@@ -54,7 +54,9 @@ typedef struct{
 	uint32_t cycles;	//Zyklen für diesen Vorgang
 	uint8_t mode;
 	uint8_t flag;
-
+	uint8_t maxvalue;
+	uint8_t minvalue;
+	uint8_t errorcounter;
 } faderstruct;
 
 #define STARTTIMER TCCR1B |= (1<<CS11) | (1<<CS10)

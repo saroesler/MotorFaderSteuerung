@@ -33,6 +33,9 @@ void initFader(void){
 		fader[i].cycles = 65530;
 		fader[i].factor = STARTFACTOR;
 		fader[i].mode = WAITFORRUN;
+		fader[i].minvalue = 0;
+		fader[i].maxvalue = 255;
+		fader[i].errorcounter = 0;
 	}
 
 	numFaderRunning = 0;
@@ -108,19 +111,78 @@ void workFader(){
 				}
 				break;
 			case ENDCONTROLL:
-				if(adcData[i][ADCNEWVALUE] == fader[i].position)
-					fader[i].mode = READY;
-				else {
-					fader[i].startposition = adcData[i][ADCNEWVALUE];
-					fader[i].mode = WAITFORRUN;
+				if(fader[i].flag & (1<<FINDMAX)){
+					//Findet Maximalwert
 
-					if(adcData[i][ADCNEWVALUE] < fader[i].position){
-						fader[i].flag |= (1<<DIRECTION);	//vorlaufen
-						fader[i].cycles = fader[i].factor * (fader[i].position - fader[i].startposition) * 2;
-					}
-					else {
+					//Wenn Wert erreicht wurde oder zu oft verfehlt
+					if(adcData[i][ADCNEWVALUE] == 255 || fader[i].errorcounter >= 100){
+						fader[i].errorcounter = 0;
+
+						//Wert als maxmalwert speichern
+						fader[i].maxvalue = adcData[i][ADCREAL];
+
+						//Faktor anpassen
+						fader[i].factor *=  (double) (adcData[i][ADCREAL]/ 255.0);
+
+						fader[i].flag &= ~(1<<FINDMAX);
+
+						//Minimalen Wert finden
+						fader[i].flag |= (1<<FINDMIN);
+
+						fader[i].startposition = adcData[i][ADCNEWVALUE];
+						fader[i].mode = WAITFORRUN;
+
 						fader[i].flag &= ~(1<<DIRECTION);	//zurücklaufen
-						fader[i].cycles = fader[i].factor * (fader[i].startposition - fader[i].position) * 2;
+						fader[i].cycles = fader[i].factor * (fader[i].startposition);
+						fader[i].position = 0;
+
+					} else {
+						//Wert wurde nicht erreicht
+						fader[i].startposition = adcData[i][ADCNEWVALUE];
+						fader[i].mode = WAITFORRUN;
+						fader[i].errorcounter ++;
+
+						fader[i].flag |= (1<<DIRECTION);	//vorlaufen
+						fader[i].cycles = fader[i].factor * (255 - fader[i].startposition) * 2;
+
+					}
+
+				} else if (fader[i].flag & (1<< FINDMIN)){
+					//Findet Maximalwert
+					//Wenn Wert erreicht wurde oder zu oft verfehlt
+					if(adcData[i][ADCNEWVALUE] == 0 || fader[i].errorcounter >= 100){
+						fader[i].mode = READY;
+						fader[i].errorcounter = 0;
+						fader[i].minvalue = adcData[i][ADCREAL];
+						fader[i].flag &= ~(1<<FINDMIN);
+					} else {
+						//Wert wurde nicht erreicht
+						fader[i].startposition = adcData[i][ADCNEWVALUE];
+						fader[i].mode = WAITFORRUN;
+						fader[i].errorcounter ++;
+
+						fader[i].flag &= ~(1<<DIRECTION);	//zurücklaufen
+						fader[i].cycles = fader[i].factor * (fader[i].startposition) * 2;
+					}
+				} else {
+					//Normaler Modus
+
+					//Wenn Wert erreicht wurde oder zu oft verfehlt
+					if(adcData[i][ADCNEWVALUE] == fader[i].position){
+						fader[i].mode = READY;
+					} else {
+						//Wert wurde nicht erreicht
+						fader[i].startposition = adcData[i][ADCNEWVALUE];
+						fader[i].mode = WAITFORRUN;
+
+						if(adcData[i][ADCNEWVALUE] < fader[i].position){
+							fader[i].flag |= (1<<DIRECTION);	//vorlaufen
+							fader[i].cycles = fader[i].factor * (fader[i].position - fader[i].startposition) * 2;
+						}
+						else {
+							fader[i].flag &= ~(1<<DIRECTION);	//zurücklaufen
+							fader[i].cycles = fader[i].factor * (fader[i].startposition - fader[i].position) * 2;
+						}
 					}
 				}
 				break;
@@ -244,7 +306,7 @@ void setTimer(uint8_t startnum){
 
 								//Nächsten Schritt vorbereiten
 								fader[i].startposition = adcData[i][ADCNEWVALUE];
-								fader[i].position = 0;
+								/*fader[i].position = 0;
 								fader[i].flag &= ~(1<<DIRECTION);	//zurücklaufen
 
 								if(adcData[i][ADCNEWVALUE] > 10){
@@ -255,15 +317,17 @@ void setTimer(uint8_t startnum){
 									//Direkt anfahren
 									fader[i].cycles = fader[i].factor * adcData[i][ADCNEWVALUE];
 									fader[i].mode = WAITFORRUN;
-								}
+								}*/
+
+								fader[i].position = 255;
+								fader[i].flag |= (1<<DIRECTION);	//vorlaufen
+								fader[i].cycles = fader[i].factor * (255 - adcData[i][ADCNEWVALUE]);
+								fader[i].mode = WAITFORRUN;
 
 								fader[i].flag&=~(1<<INITIALIZE);
+								fader[i].flag|=(1<<FINDMAX);
 
 							}
-						} else if(fader[i].flag & (1<<FINDMAX)){
-
-						} else if(fader[i].flag & (1<<FINDMIN)){
-
 						} else {
 							//normales fahren
 							fader[i].mode = ENDCONTROLL;

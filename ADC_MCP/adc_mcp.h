@@ -28,6 +28,7 @@
 #define ADCNEWVALUE 4
 #define TEMPVALUE 5
 #define COUNTER 6
+#define ADCREAL 7		//unbereinigte Messwerte
 
 void initSPI(void);
 
@@ -44,6 +45,6 @@ uint8_t getValue(void);
  */
 uint16_t readMeassure(uint8_t pin);
 
-extern volatile uint8_t adcData[CHANNEL][7];
+extern volatile uint8_t adcData[CHANNEL][8];
 
 #endif /* ADC_MCP_H_ */
