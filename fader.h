@@ -36,12 +36,16 @@
 //flag positions
 #define DIRECTION 0
 #define INITIALIZE 1
-#define CLEARDATA0 2		//gesetzt,motor steht und Änderungen übersprungen werden
-#define CLEARDATA1 3		//gesetzt, wenn Daten Änderung nicht von Motor hervorgerufen.
+#define FINDMAX 2
+#define FINDMIN 3
+
+//Flags, die verhindern, dass Motoränderungen zurückgesendet werden.
+#define CLEARDATA0 6		//gesetzt,motor steht und Änderungen übersprungen werden
+#define CLEARDATA1 7		//gesetzt, wenn Daten Änderung nicht von Motor hervorgerufen.
 
 
 #define STARTFACTOR 10000.0	//start faktor
-#define SLEEPCYCLES 14745600	//zyklen, die der Fader schläft
+#define SLEEPCYCLES 147456000	//zyklen, die der Fader schläft
 
 typedef struct{
 	uint8_t position;

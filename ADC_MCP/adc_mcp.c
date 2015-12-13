@@ -47,7 +47,7 @@ void startMeassure(){
 	//enable interrupt
 	SPCR |= (1 << SPIE);
 
-	//SS Wählen
+	//CS Wählen
 	PORTB &= ~(1<<2);
 
 	//erstes Byte zum ADC senden

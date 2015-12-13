@@ -80,11 +80,8 @@ void workFader(){
 			case WAITFORRUN:
 				//wenn noch ein fader arbeiten darf und dieser auch noch zyklen hat
 				if(numFaderRunning < PARALLELFADER && fader[i].cycles > 0){
-
-					if(fader[i].mode == WAITFORTEST)
-						fader[i].mode = TESTIMPULS;
-					else
-						fader[i].mode = RUN;
+					//in Ausfürhmodus gehen
+					fader[i].mode ++;
 					fader[i].startposition = adcData[i][ADCNEWVALUE];
 					setTimer(i);
 					startMotor(i,fader[i].flag & (1<<DIRECTION));
@@ -240,10 +237,12 @@ void setTimer(uint8_t startnum){
 								fader[i].mode = WAITFORRUN;
 							} else {
 
+								//Faktor zum Fahren berechnen
 								fader[i].factor = (65530.0) / (adcData[i][ADCNEWVALUE] - fader[i].startposition);
 								if( fader[i].factor < 0)
 									fader[i].factor *= -1;
 
+								//Nächsten Schritt vorbereiten
 								fader[i].startposition = adcData[i][ADCNEWVALUE];
 								fader[i].position = 0;
 								fader[i].flag &= ~(1<<DIRECTION);	//zurücklaufen
@@ -261,8 +260,12 @@ void setTimer(uint8_t startnum){
 								fader[i].flag&=~(1<<INITIALIZE);
 
 							}
-						}
-						else{
+						} else if(fader[i].flag & (1<<FINDMAX)){
+
+						} else if(fader[i].flag & (1<<FINDMIN)){
+
+						} else {
+							//normales fahren
 							fader[i].mode = ENDCONTROLL;
 						}
 						break;

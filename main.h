@@ -8,7 +8,7 @@
 #ifndef MAIN_H_
 #define MAIN_H_
 
-#define CHANNEL 1
+#define CHANNEL 2
 #define ENTPRELLLEVEL 10
 #define PARALLELFADER 4
 
