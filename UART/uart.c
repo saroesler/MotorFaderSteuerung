@@ -12,17 +12,15 @@ volatile uint8_t interrupt = 1;
 
 ISR(USART_RXC_vect)
 {
-	uartFlag &=~ (1<<NEWRECEIVED);
-
 	char data = UDR;
 
-	if(data == '\0' || (data >= 0x20 && data <= 0x7d)){
+	if((data == '\0' || (data >= 0x20 && data <= 0x7d)) && (numInMessage == 0)){
 		inMessage[iInMessage] = data;
 		iInMessage ++;
 
 		if(data == '\0'){
 			numInMessage = iInMessage;
-			uartFlag |= (1 << NEWRECEIVED);
+			iInMessage = 0;
 		}
 	}
 }
@@ -31,7 +29,6 @@ ISR(USART_TXC_vect)
 {
 	//ein datenpacket senden
 	if(iOutMessage < numOutMessage){
-		uartFlag &=~ (1<<SENDET);
 		//nächstes Byte senden
 		UDR = outMessage[iOutMessage ++];
 	// schluss senden
@@ -42,7 +39,7 @@ ISR(USART_TXC_vect)
 	//Ende senden
 	} else {
 		iOutMessage = 0;
-		uartFlag |= (1<<SENDET);
+		numOutMessage = 0;
 		outMessage[0] = '\0';
 	}
 }
@@ -60,9 +57,9 @@ void uart_init(void)
 
 //start senden
 void sendMessage(void){
+	numOutMessage = strlen(outMessage);
 	if(numOutMessage > 0 && iOutMessage == 0){
-		uartFlag &=~ (1<<SENDET);
 		UDR = outMessage[iOutMessage];
-		iOutMessage++;
+		iOutMessage = 1;
 	}
 }

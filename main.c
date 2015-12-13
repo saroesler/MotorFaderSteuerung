@@ -89,7 +89,7 @@ int main(void){
 		 * Uart Empfangen
 		 */
 
-		if(uartFlag & (1 << NEWRECEIVED)){
+		if(numInMessage != 0){
 
 			PORTB &= ~(1<<0);
 
@@ -146,8 +146,7 @@ int main(void){
 
 			}
 			inMessage[0] = '\0';
-			iInMessage = 0;
-			uartFlag &= ~(1 << NEWRECEIVED);
+			numInMessage = 0;
 		}
 
 		/*
@@ -171,9 +170,9 @@ int main(void){
 				adcData[i][NEWVALUEFLAG] = 0;
 			}
 #ifdef SHOWALL
-			if(adcData[i][CHANGED] == 1 && allowSending){
+			if(adcData[i][CHANGED] == 1 && allowSending && numOutMessage == 0){
 #else
-			if(adcData[i][CHANGED] == 1 && fader[i].flag & (1<< CLEARDATA1) && allowSending){
+			if(adcData[i][CHANGED] == 1 && fader[i].flag & (1<< CLEARDATA1) && allowSending && numOutMessage == 0){
 #endif
 
 				//Trennzeichen im String
@@ -196,8 +195,7 @@ int main(void){
 		if(newMessage && allowSending){
 			sendMessage();
 
-			while(!(uartFlag & (1<<SENDET)));
-			outMessage[0] = '\0';
+			while(numOutMessage != 0);
 			newMessage = 0;
 		}
 	}

@@ -20,9 +20,6 @@ uint8_t volatile iInMessage = 0;
 //Länge der zusendenen Nachricht
 uint8_t volatile numInMessage = 0;
 
-//status flag für Uart
-uint8_t volatile uartFlag = 0;
-
 char volatile inMessage[20];
 char volatile outMessage[20];
 

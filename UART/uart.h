@@ -10,9 +10,6 @@
 
 #include "../main.h"
 
-#define SENDET 0
-#define NEWRECEIVED 1
-
 //Zähler um zusendene Nachricht zu durchwandern
 extern volatile uint8_t iOutMessage;
 //Länge der zusendenen Nachricht
@@ -22,9 +19,6 @@ extern volatile uint8_t numOutMessage;
 extern volatile uint8_t iInMessage;
 //Länge der zusendenen Nachricht
 extern volatile uint8_t numInMessage;
-
-//status flag für Uart
-extern volatile uint8_t uartFlag;
 
 extern volatile uint8_t interrupt;
 
