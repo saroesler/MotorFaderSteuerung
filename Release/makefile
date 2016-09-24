@@ -33,56 +33,56 @@ endif
 
 # Add inputs and outputs from these tool invocations to the build variables 
 LSS += \
-Fader_Steuerung.lss \
+MotorFaderSteuerung.lss \
 
 FLASH_IMAGE += \
-Fader_Steuerung.hex \
+MotorFaderSteuerung.hex \
 
 EEPROM_IMAGE += \
-Fader_Steuerung.eep \
+MotorFaderSteuerung.eep \
 
 SIZEDUMMY += \
 sizedummy \
 
 
 # All Target
-all: Fader_Steuerung.elf secondary-outputs
+all: MotorFaderSteuerung.elf secondary-outputs
 
 # Tool invocations
-Fader_Steuerung.elf: $(OBJS) $(USER_OBJS)
+MotorFaderSteuerung.elf: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: AVR C Linker'
-	avr-gcc -Wl,-Map,Fader_Steuerung.map -mmcu=atmega8 -o "Fader_Steuerung.elf" $(OBJS) $(USER_OBJS) $(LIBS)
+	avr-gcc -Wl,-Map,MotorFaderSteuerung.map -mmcu=atmega8 -o "MotorFaderSteuerung.elf" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
-Fader_Steuerung.lss: Fader_Steuerung.elf
+MotorFaderSteuerung.lss: MotorFaderSteuerung.elf
 	@echo 'Invoking: AVR Create Extended Listing'
-	-avr-objdump -h -S Fader_Steuerung.elf  >"Fader_Steuerung.lss"
+	-avr-objdump -h -S MotorFaderSteuerung.elf  >"MotorFaderSteuerung.lss"
 	@echo 'Finished building: $@'
 	@echo ' '
 
-Fader_Steuerung.hex: Fader_Steuerung.elf
+MotorFaderSteuerung.hex: MotorFaderSteuerung.elf
 	@echo 'Create Flash image (ihex format)'
-	-avr-objcopy -R .eeprom -R .fuse -R .lock -R .signature -O ihex Fader_Steuerung.elf  "Fader_Steuerung.hex"
+	-avr-objcopy -R .eeprom -R .fuse -R .lock -R .signature -O ihex MotorFaderSteuerung.elf  "MotorFaderSteuerung.hex"
 	@echo 'Finished building: $@'
 	@echo ' '
 
-Fader_Steuerung.eep: Fader_Steuerung.elf
+MotorFaderSteuerung.eep: MotorFaderSteuerung.elf
 	@echo 'Create eeprom image (ihex format)'
-	-avr-objcopy -j .eeprom --no-change-warnings --change-section-lma .eeprom=0 -O ihex Fader_Steuerung.elf  "Fader_Steuerung.eep"
+	-avr-objcopy -j .eeprom --no-change-warnings --change-section-lma .eeprom=0 -O ihex MotorFaderSteuerung.elf  "MotorFaderSteuerung.eep"
 	@echo 'Finished building: $@'
 	@echo ' '
 
-sizedummy: Fader_Steuerung.elf
+sizedummy: MotorFaderSteuerung.elf
 	@echo 'Invoking: Print Size'
-	-avr-size --format=avr --mcu=atmega8 Fader_Steuerung.elf
+	-avr-size --format=avr --mcu=atmega8 MotorFaderSteuerung.elf
 	@echo 'Finished building: $@'
 	@echo ' '
 
 # Other Targets
 clean:
-	-$(RM) $(FLASH_IMAGE)$(ELFS)$(OBJS)$(ASM_DEPS)$(EEPROM_IMAGE)$(S_DEPS)$(SIZEDUMMY)$(S_UPPER_DEPS)$(LSS)$(C_DEPS) Fader_Steuerung.elf
+	-$(RM) $(FLASH_IMAGE)$(ELFS)$(OBJS)$(ASM_DEPS)$(EEPROM_IMAGE)$(S_DEPS)$(SIZEDUMMY)$(S_UPPER_DEPS)$(LSS)$(C_DEPS) MotorFaderSteuerung.elf
 	-@echo ' '
 
 secondary-outputs: $(LSS) $(FLASH_IMAGE) $(EEPROM_IMAGE) $(SIZEDUMMY)
