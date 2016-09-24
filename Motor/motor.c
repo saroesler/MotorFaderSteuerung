@@ -6,6 +6,7 @@
  */
 #include "motor.h"
 
+#if TYPE == MOTOR_FADER
 static uint32_t shiftData = 0;
 
 void startMotor(uint8_t num, uint8_t direction){
@@ -31,4 +32,4 @@ void stopAll(){
 	shiftData = 0;
 	shift(shiftData);
 }
-
+#endif

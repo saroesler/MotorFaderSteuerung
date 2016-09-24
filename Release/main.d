@@ -1,8 +1,10 @@
-main.d: ../main.c ../main.h ../fader.h ../ADC_MCP/adc_mcp.h \
- ../ADC_MCP/../main.h ../UART/uart.h ../UART/../main.h ../Motor/motor.h \
- ../Motor/../main.h ../Motor/shift.h
+main.d: ../main.c ../main.h ../type.h ../fader.h ../ADC_MCP/adc_mcp.h \
+ ../ADC_MCP/../main.h ../ADC_MCP/../type.h ../UART/uart.h \
+ ../UART/../main.h
 
 ../main.h:
+
+../type.h:
 
 ../fader.h:
 
@@ -10,12 +12,8 @@ main.d: ../main.c ../main.h ../fader.h ../ADC_MCP/adc_mcp.h \
 
 ../ADC_MCP/../main.h:
 
+../ADC_MCP/../type.h:
+
 ../UART/uart.h:
 
 ../UART/../main.h:
-
-../Motor/motor.h:
-
-../Motor/../main.h:
-
-../Motor/shift.h:

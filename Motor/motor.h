@@ -11,11 +11,15 @@
 #include "../main.h"
 #include "shift.h"
 
+#if TYPE == MOTOR_FADER
+
 #define VOR FRONT
 #define RUECK BACK
 
 void startMotor(uint8_t num, uint8_t direction);
 void stopMotor(uint8_t num);
 void stopAll();
+
+#endif
 
 #endif /* MOTOR_H_ */

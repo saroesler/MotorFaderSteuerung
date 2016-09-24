@@ -19,6 +19,10 @@ uint8_t oldValue = 0;
  */
 void initFader(void){
 	for(uint8_t i = 0; i < CHANNEL; i ++){
+		fader[i].minvalue = 0;
+		fader[i].maxvalue = 255;
+
+#if TYPE == MOTOR_FADER
 		uint8_t mask = 0;
 		uint8_t startValue = readFader(i, &mask);
 		if(startValue > 122){
@@ -30,13 +34,12 @@ void initFader(void){
 
 		fader[i].flag |= (1<<INITIALIZE);
 		fader[i].startposition = 0;
-		fader[i].cycles = 65530;
+		fader[i].cycles = 65430;
 		fader[i].factor = STARTFACTOR;
 		fader[i].mode = WAITFORRUN;
-		fader[i].minvalue = 0;
-		fader[i].maxvalue = 255;
 		fader[i].errorcounter = 0;
 	}
+
 
 	numFaderRunning = 0;
 
@@ -47,8 +50,12 @@ void initFader(void){
 
 	// Global Interrupts aktivieren
 	sei();
+#else
+	}//end for if ONLY_FADER
+#endif
 }
 
+#if TYPE == MOTOR_FADER
 void workFader(){
 	for(uint8_t i = 0; i < CHANNEL; i ++){
 
@@ -115,14 +122,14 @@ void workFader(){
 					//Findet Maximalwert
 
 					//Wenn Wert erreicht wurde oder zu oft verfehlt
-					if(adcData[i][ADCNEWVALUE] == 255 || fader[i].errorcounter >= 100){
+					if(adcData[i][ADCNEWVALUE] == 255 || fader[i].errorcounter >= 10){
 						fader[i].errorcounter = 0;
 
 						//Wert als maxmalwert speichern
 						fader[i].maxvalue = adcData[i][ADCREAL];
 
 						//Faktor anpassen
-						fader[i].factor *=  (double) (adcData[i][ADCREAL]/ 255.0);
+						//fader[i].factor *=  (double) (adcData[i][ADCREAL]/ 255.0);
 
 						fader[i].flag &= ~(1<<FINDMAX);
 
@@ -150,7 +157,7 @@ void workFader(){
 				} else if (fader[i].flag & (1<< FINDMIN)){
 					//Findet Maximalwert
 					//Wenn Wert erreicht wurde oder zu oft verfehlt
-					if(adcData[i][ADCNEWVALUE] == 0 || fader[i].errorcounter >= 100){
+					if(adcData[i][ADCNEWVALUE] == 0 || fader[i].errorcounter >= 10){
 						fader[i].mode = READY;
 						fader[i].errorcounter = 0;
 						fader[i].minvalue = adcData[i][ADCREAL];
@@ -294,13 +301,13 @@ void setTimer(uint8_t startnum){
 								fader[i].startposition = adcData[i][ADCNEWVALUE];
 
 								fader[i].flag |= (1<<INITIALIZE);
-								fader[i].cycles = 65530;
+								fader[i].cycles = 65430;
 								fader[i].factor = STARTFACTOR;
 								fader[i].mode = WAITFORRUN;
 							} else {
 
 								//Faktor zum Fahren berechnen
-								fader[i].factor = (65530.0) / (adcData[i][ADCNEWVALUE] - fader[i].startposition);
+								fader[i].factor = (65430.0) / (adcData[i][ADCNEWVALUE] - fader[i].startposition);
 								if( fader[i].factor < 0)
 									fader[i].factor *= -1;
 
@@ -429,6 +436,7 @@ void gotoPosition(uint8_t i, uint8_t pos){
 		UDR = adcData[i][ADCNEWVALUE];
 #endif
 }
+#endif //end MOTOR_FADER
 
 uint8_t readFader(uint8_t pin, uint8_t* mask){
 	uint8_t counter = 10;
@@ -458,11 +466,14 @@ uint8_t readFader(uint8_t pin, uint8_t* mask){
 }
 
 uint16_t testFader(uint8_t i){
+#if TYPE == MOTOR_FADER
 	if(fader[i].mode != READY){
 		//daten sperren
 		fader[i].flag &= ~((1 << CLEARDATA0) | (1 << CLEARDATA1));
 	}
+#endif
 	uint16_t initialized = 0;
+
 	//Neuer Wert
 	if(adcData[i][ADCNEWVALUE] != adcData[i][OLD]){
 		if(adcData[i][ADCNEWVALUE] == adcData[i][TEMPVALUE]){
@@ -473,7 +484,7 @@ uint16_t testFader(uint8_t i){
 
 		adcData[i][TEMPVALUE] = adcData[i][ADCNEWVALUE];
 
-		//neuer Wert
+		//Entprellen
 		if(adcData[i][COUNTER] == ENTPRELLLEVEL){
 			adcData[i][OLD] = adcData[i][ACT];
 			adcData[i][ACT] = adcData[i][ADCNEWVALUE];
@@ -482,12 +493,14 @@ uint16_t testFader(uint8_t i){
 			adcData[i][COUNTER] = 0;
 			initialized |= (1 << i);
 
+#if TYPE == MOTOR_FADER
 			//Motor steht, Daten sind OK
 			if(fader[i].mode == READY && (fader[i].flag & (1 << CLEARDATA0)))
 				fader[i].flag |= (1 << CLEARDATA1);
 			//Motor steht, letzte Änderung
 			else if(fader[i].mode == READY )
 				fader[i].flag |= (1 << CLEARDATA0);
+#endif
 		}
 
 	}

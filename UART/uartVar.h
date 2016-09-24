@@ -20,6 +20,9 @@ uint8_t volatile iInMessage = 0;
 //Länge der zusendenen Nachricht
 uint8_t volatile numInMessage = 0;
 
+//Sendeerlaubnis
+uint8_t volatile allowSending = 0;
+
 char volatile inMessage[20];
 char volatile outMessage[20];
 

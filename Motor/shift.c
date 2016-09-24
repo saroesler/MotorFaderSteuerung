@@ -6,6 +6,7 @@
  */
 #include "shift.h"
 
+#if TYPE == ONLY_FADER
 void init_shift(void){
 	SHIFT_DDR |= (1<< SHIFT_DATA) | (1<< SHIFT_CLK) | (1<< SHIFT_PS);
 }
@@ -25,3 +26,4 @@ void shift(uint32_t data){
 	SHIFT_PORT &= ~(1 << SHIFT_CLK);
 	SHIFT_PORT &= ~(1 << SHIFT_PS);
 }
+#endif

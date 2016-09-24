@@ -8,13 +8,13 @@
 #ifndef MAIN_H_
 #define MAIN_H_
 
-#define CHANNEL 2
 #define ENTPRELLLEVEL 10
 #define PARALLELFADER 4
 
 
 #define LED 0
 
+#include "type.h"
 #include <avr/io.h>
 #include <stdint.h>
 #include <avr/interrupt.h>
@@ -23,7 +23,10 @@
 #include <string.h>
 #include "fader.h"
 #include "UART/uart.h"
+
+#if TYPE == MOTOR_FADER
 #include "Motor/motor.h"
+#endif
 
 #define SLAVEID '1' //Name of this slave
 

@@ -10,6 +10,7 @@
 
 #include "../main.h"
 
+#if TYPE == ONLY_FADER
 #define SHIFT_DDR DDRC
 #define SHIFT_PORT PORTC
 
@@ -19,5 +20,5 @@
 
 void shift();
 void init_shift();
-
+#endif
 #endif /* SHIFT_H_ */

@@ -11,24 +11,27 @@
 #define ADC_MCP_H_
 
 #include "../main.h"
+#include "../type.h"
 
 #define DDR_SPI DDRB
 #define PORT_SPI PORTB
 #define DD_MOSI 5
 #define DD_SCK 3
-#define DD_SS 2
+#define DD_SS1 2
+#define DD_SS2 1
+
 
 /*
  * Array flags
  */
-#define ACT 0
-#define OLD 1
-#define CHANGED 2
-#define NEWVALUEFLAG 3
-#define ADCNEWVALUE 4
-#define TEMPVALUE 5
-#define COUNTER 6
-#define ADCREAL 7		//unbereinigte Messwerte
+#define ACT 0			//actual debounced value
+#define OLD 1			//previous debounced value
+#define CHANGED 2		//get new debounced value to work it
+#define NEWVALUEFLAG 3	//get new value by the adc
+#define ADCNEWVALUE 4	//the value, read by the adc last time
+#define TEMPVALUE 5		//last value, without debounce (de:Entprellen)
+#define COUNTER 6		//debounce counter (de:Entprellen)
+#define ADCREAL 7		//unbereinigte Messwerte (ohne max- min Anpassung)
 
 void initSPI(void);
 

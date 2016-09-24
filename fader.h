@@ -10,14 +10,15 @@
 
 #include "ADC_MCP/adc_mcp.h"
 #include "main.h"
+#include "type.h"
 
 //mask defines
 #define NEWVALUE 0
 
-
+#if TYPE == MOTOR_FADER
 /*
  *  faderstruct
- *  Struktur zur ansteuerung eines Faders
+ *  Struktur zur ansteuerung eines MotorFaders
  */
 //mode defines
 #define READY 0				//keine Aufgabe
@@ -46,25 +47,32 @@
 
 #define STARTFACTOR 10000.0	//start faktor
 #define SLEEPCYCLES 147456000	//zyklen, die der Fader schläft
+#define STARTTIMER TCCR1B |= (1<<CS11) | (1<<CS10)
+#define STOPTIMER TCCR1B &= ~((1<<CS11) | (1<<CS10))
+#endif
 
 typedef struct{
+#if TYPE == MOTOR_FADER
 	uint8_t position;
 	uint8_t startposition;
 	float factor;
 	uint32_t cycles;	//Zyklen für diesen Vorgang
 	uint8_t mode;
 	uint8_t flag;
+#endif
 	uint8_t maxvalue;
 	uint8_t minvalue;
+#if TYPE == MOTOR_FADER
 	uint8_t errorcounter;
+#endif
 } faderstruct;
 
-#define STARTTIMER TCCR1B |= (1<<CS11) | (1<<CS10)
-#define STOPTIMER TCCR1B &= ~((1<<CS11) | (1<<CS10))
-
 extern faderstruct fader[CHANNEL];
+
+#if TYPE == MOTOR_FADER
 extern volatile uint8_t numFaderRunning;	//number of running fader
 extern volatile uint8_t timerReady;
+#endif
 
 void initFader();
 uint8_t readFader(uint8_t pin, uint8_t* mask);

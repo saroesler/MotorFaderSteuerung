@@ -28,7 +28,9 @@ int main(void){
 	initSPI();
 	uart_init();
 	init();
+#if TYPE == MOTOR_FADER
 	init_shift();
+#endif
 	initFader();
 
 	_delay_ms(1000);
@@ -73,14 +75,15 @@ int main(void){
 
 	_delay_ms(1000);
 
+#if TYPE == MOTOR_FADER
 	uint16_t initref = 0;
 
 	for(uint8_t i = 0; i < CHANNEL; i ++){
 		initref |= (1<<i);
 	}
+#endif
 
 	uint16_t initialzied = 0;
-	uint8_t allowSending = 0;
 	uint8_t newMessage = 0;
 	while(1){
 
@@ -96,6 +99,8 @@ int main(void){
 			//_delay_ms(10);
 
 			switch(inMessage[0]){
+
+#if TYPE == MOTOR_FADER
 				case 'm':
 					allowSending = 0;
 
@@ -119,7 +124,7 @@ int main(void){
 						strncpy( subbuff, pt2, (pt1 - pt2) );
 						subbuff[4] = '\0';
 
-						uint8_t num = atoi(subbuff);
+						uint8_t num = atoi(subbuff) - STARTADDRESS;
 
 						//Faderwert ausschneiden
 						pt2 = strstr(pt1, ";");
@@ -136,6 +141,15 @@ int main(void){
 						gotoPosition(num, value);
 					}
 					break;
+#else
+				//set fader max level
+				case 'n':
+					break;
+				//set fader min level
+				case 'o':
+					break;
+#endif
+#ifndef UART_STATE_WIRE_MODE
 				case 's':
 					//Slaves können senden
 					if(inMessage[1] == SLAVEID)
@@ -143,14 +157,16 @@ int main(void){
 					else
 						allowSending = 0;
 					break;
+#endif
 
 			}
 			inMessage[0] = '\0';
 			numInMessage = 0;
 		}
 
+#if TYPE == MOTOR_FADER
 		/*
-		 * Steuerung der Fader
+		 * Steuerung der Motorfader
 		 */
 		if(initialzied == initref){
 			if(timerReady){
@@ -159,26 +175,36 @@ int main(void){
 			}
 			workFader();
 		}
+#endif
 
 		/*
 		 * Fader auslesen und Änderungsstring bereitstellen
 		 */
 		char Buffer[4] = "";
 		for(uint8_t i = 0; i < CHANNEL; i ++){
+			//Initializes Motorfader
 			if(adcData[i][NEWVALUEFLAG]){
 				initialzied |= testFader(i);
 				adcData[i][NEWVALUEFLAG] = 0;
 			}
 #ifdef SHOWALL
+#ifndef UART_STATE_WIRE_MODE
 			if(adcData[i][CHANGED] == 1 && allowSending && numOutMessage == 0){
 #else
+			if(adcData[i][CHANGED] == 1 && numOutMessage == 0){
+#endif
+#else
+#ifndef UART_STATE_WIRE_MODE
 			if(adcData[i][CHANGED] == 1 && fader[i].flag & (1<< CLEARDATA1) && allowSending && numOutMessage == 0){
+#else
+			if(adcData[i][CHANGED] == 1 && fader[i].flag & (1<< CLEARDATA1) && numOutMessage == 0){
+#endif
 #endif
 
 				//Trennzeichen im String
 				if(strlen(outMessage) > 0)
 					strcat(outMessage, ";");
-				itoa(i, Buffer, 10);
+				itoa(i + STARTADDRESS, Buffer, 10);
 				strcat(outMessage, Buffer);	//geht immer
 				strcat(outMessage, ":"); 	//sendet :, wenn motor nicht an war
 				itoa(adcData[i][ACT], Buffer, 10);
@@ -192,12 +218,20 @@ int main(void){
 			}
 		}
 
-		if(newMessage && allowSending){
+#ifndef UART_STATE_WIRE_MODE
+		if(newMessage && allowSending){{
+#else
+			//send, if there is a reserved wire for this slave
+		if(newMessage){
+			//try to block the bus, if success, send
+			if(reserveBus()){
+#endif
 			sendMessage();
 
 			while(numOutMessage != 0);
 			newMessage = 0;
-		}
+			freeBus();
+		}}
 	}
 	return 0;
 }
