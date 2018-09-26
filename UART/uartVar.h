@@ -24,6 +24,6 @@ uint8_t volatile numInMessage = 0;
 uint8_t volatile allowSending = 0;
 
 char volatile inMessage[20];
-char volatile outMessage[20];
+char volatile outMessage[100];
 
 #endif /* UARTVAR_H_ */

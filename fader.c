@@ -7,408 +7,326 @@
 
 #include "fader.h"
 
-faderstruct fader[CHANNEL];
-volatile uint8_t numFaderRunning = 0;	//number of running fader
-volatile uint8_t timerReady = 0;
+uint8_t debugVar = 0;
+volatile static uint64_t clock;
 
-uint8_t oldValue = 0;
+//volatile faderstruct fader[CHANNEL];
+#if TYPE == MOTOR_FADER
+static uint8_t numFaderRunning = 0;	//number of running fader
+volatile uint8_t timerReady = 0;
+#endif
 
 /*
  * initialisert Fader
  * soll 100 Schritte fahren
  */
-void initFader(void){
+void initFader(faderstruct * fader){
+	//halte Motoren an
+#if TYPE == MOTOR_FADER
+	stopAll();
+#endif
+
 	for(uint8_t i = 0; i < CHANNEL; i ++){
-		fader[i].minvalue = 0;
 		fader[i].maxvalue = 255;
+		fader[i].minvalue = 0;
+		fader[i].adcValue = 0;			//Benötigt für min-/ max-Berechnungen
+		fader[i].bereinigt = 0;			//max-min- normiert aber nicht entprellt; für die Arbeit der Motorfader
+		fader[i].entprellt = 0;			//Entprellter Werte - kann zum Senden verwendet werden
+		fader[i].entprellCounter = 0;	//Zähler, um Wert zu entprellen
+		fader[i].valueflags = 0;	//Entprellter Wert wurde geändert
 
 #if TYPE == MOTOR_FADER
-		uint8_t mask = 0;
-		uint8_t startValue = readFader(i, &mask);
-		if(startValue > 122){
-			fader[i].position = startValue - 100;
-			fader[i].flag &= ~(1<<DIRECTION);	//zurücklaufen
-		} else {
-			fader[i].flag |= (1<<DIRECTION);	//vorlaufen
-		}
-
-		fader[i].flag |= (1<<INITIALIZE);
+		fader[i].zielposition = 0;
 		fader[i].startposition = 0;
-		fader[i].cycles = 65430;
-		fader[i].factor = STARTFACTOR;
-		fader[i].mode = WAITFORRUN;
+		fader[i].lastposition = 0;
+		fader[i].speed = INITCYCLES;
+		fader[i].time = 0;
+		fader[i].cycles = 0;
+		fader[i].mode = READY;
 		fader[i].errorcounter = 0;
+		fader[i].innererrorcounter = 0;
+		fader[i].motorflags = 0;
+		fader[i].divider = 1;
 	}
 
 
 	numFaderRunning = 0;
 
-	// Timer 0 konfigurieren
-	TCCR1B = 0;
-	OCR1A = 18432;
-	TIMSK |= (1<<OCIE1A);
-
-	// Global Interrupts aktivieren
-	sei();
+	timer_init();
 #else
 	}//end for if ONLY_FADER
 #endif
 }
 
-#if TYPE == MOTOR_FADER
-void workFader(){
-	for(uint8_t i = 0; i < CHANNEL; i ++){
+/*void initGlobalClock(void){
+	clock = 0;
 
-#ifdef DEBUG
-		while (!(UCSRA & (1<<UDRE)))  // warten bis Senden moeglich
-		{
-		}
-		UDR = fader[i].mode;
-		while (!(UCSRA & (1<<UDRE)))  // warten bis Senden moeglich
-		{}
-		UDR = fader[i].cycles;
+	//Start timer
+	TCCR0 |= (1<<CS01) | (1<<CS00);
 
-		while (!(UCSRA & (1<<UDRE)))  // warten bis Senden moeglich
-		{}
-		UDR = fader[i].factor;
-
-		while (!(UCSRA & (1<<UDRE)))  // warten bis Senden moeglich
-		{}
-		UDR = fader[i].startposition;
-
-		while (!(UCSRA & (1<<UDRE)))  // warten bis Senden moeglich
-		{}
-		UDR = fader[i].position;
-
-		while (!(UCSRA & (1<<UDRE)))  // warten bis Senden moeglich
-		{}
-		UDR = adcData[i][ADCNEWVALUE];
-#endif
-
-		switch(fader[i].mode){
-			case WAITFORTEST:
-			case WAITFORRUN:
-				//wenn noch ein fader arbeiten darf und dieser auch noch zyklen hat
-				if(numFaderRunning < PARALLELFADER && fader[i].cycles > 0){
-					//in Ausfürhmodus gehen
-					fader[i].mode ++;
-					fader[i].startposition = adcData[i][ADCNEWVALUE];
-					setTimer(i);
-					startMotor(i,fader[i].flag & (1<<DIRECTION));
-					numFaderRunning ++;
-				}
-				break;
-			case TESTEVALUATION:
-				//wenn fader festgehalten wird
-				if(((fader[i].flag & (1<<DIRECTION) )&& (adcData[i][ADCNEWVALUE] < (fader[i].startposition + 9)))
-						|| ((!fader[i].flag & (1<<DIRECTION)) && (adcData[i][ADCNEWVALUE] > (fader[i].startposition - 9)))){
-					fader[i].startposition = adcData[i][ADCNEWVALUE];
-					fader[i].mode = SLEEP;
-					fader[i].cycles = SLEEPCYCLES;
-
-					setTimer(i);
-
-				} else {
-					//Wenn Motor zurückläuft
-					if(!fader[i].flag & (1<<DIRECTION))
-						fader[i].cycles = fader[i].factor * ((fader[i].startposition - 10) - fader[i].position);
-					else
-						fader[i].cycles = fader[i].factor * (fader[i].position - (fader[i].startposition + 10));
-					fader[i].mode = WAITFORRUN;
-				}
-				break;
-			case ENDCONTROLL:
-				if(fader[i].flag & (1<<FINDMAX)){
-					//Findet Maximalwert
-
-					//Wenn Wert erreicht wurde oder zu oft verfehlt
-					if(adcData[i][ADCNEWVALUE] == 255 || fader[i].errorcounter >= 10){
-						fader[i].errorcounter = 0;
-
-						//Wert als maxmalwert speichern
-						fader[i].maxvalue = adcData[i][ADCREAL];
-
-						//Faktor anpassen
-						//fader[i].factor *=  (double) (adcData[i][ADCREAL]/ 255.0);
-
-						fader[i].flag &= ~(1<<FINDMAX);
-
-						//Minimalen Wert finden
-						fader[i].flag |= (1<<FINDMIN);
-
-						fader[i].startposition = adcData[i][ADCNEWVALUE];
-						fader[i].mode = WAITFORRUN;
-
-						fader[i].flag &= ~(1<<DIRECTION);	//zurücklaufen
-						fader[i].cycles = fader[i].factor * (fader[i].startposition);
-						fader[i].position = 0;
-
-					} else {
-						//Wert wurde nicht erreicht
-						fader[i].startposition = adcData[i][ADCNEWVALUE];
-						fader[i].mode = WAITFORRUN;
-						fader[i].errorcounter ++;
-
-						fader[i].flag |= (1<<DIRECTION);	//vorlaufen
-						fader[i].cycles = fader[i].factor * (255 - fader[i].startposition) * 2;
-
-					}
-
-				} else if (fader[i].flag & (1<< FINDMIN)){
-					//Findet Maximalwert
-					//Wenn Wert erreicht wurde oder zu oft verfehlt
-					if(adcData[i][ADCNEWVALUE] == 0 || fader[i].errorcounter >= 10){
-						fader[i].mode = READY;
-						fader[i].errorcounter = 0;
-						fader[i].minvalue = adcData[i][ADCREAL];
-						fader[i].flag &= ~(1<<FINDMIN);
-					} else {
-						//Wert wurde nicht erreicht
-						fader[i].startposition = adcData[i][ADCNEWVALUE];
-						fader[i].mode = WAITFORRUN;
-						fader[i].errorcounter ++;
-
-						fader[i].flag &= ~(1<<DIRECTION);	//zurücklaufen
-						fader[i].cycles = fader[i].factor * (fader[i].startposition) * 2;
-					}
-				} else {
-					//Normaler Modus
-
-					//Wenn Wert erreicht wurde oder zu oft verfehlt
-					if(adcData[i][ADCNEWVALUE] == fader[i].position){
-						fader[i].mode = READY;
-					} else {
-						//Wert wurde nicht erreicht
-						fader[i].startposition = adcData[i][ADCNEWVALUE];
-						fader[i].mode = WAITFORRUN;
-
-						if(adcData[i][ADCNEWVALUE] < fader[i].position){
-							fader[i].flag |= (1<<DIRECTION);	//vorlaufen
-							fader[i].cycles = fader[i].factor * (fader[i].position - fader[i].startposition) * 2;
-						}
-						else {
-							fader[i].flag &= ~(1<<DIRECTION);	//zurücklaufen
-							fader[i].cycles = fader[i].factor * (fader[i].startposition - fader[i].position) * 2;
-						}
-					}
-				}
-				break;
-			case RUN:
-			case TESTIMPULS:
-				if((fader[i].startposition != 0 && adcData[i][ADCNEWVALUE] == 0) || (fader[i].startposition != 255 && adcData[i][ADCNEWVALUE] == 255)){
-					//fader anhalten, wenn ende erreicht
-					STOPTIMER;
-					fader[i].cycles = TCNT1;
-					setTimer(CHANNEL);
-				}
-				break;
-		}
-	}
-}
-
-ISR(TIMER1_COMPA_vect){
-	STOPTIMER;
-	//setTimer, kein Startkanal
-	//setTimer(CHANNEL);
-	timerReady = 1;
-}
-/*
- * Setzt den Timer neu und berechet neue Zyklen
- */
-void setTimer(uint8_t startnum){
-	//stop timer
-	STOPTIMER;
-
-	cli();
-	uint16_t counterState = 0;
-
-	//Wenn timer abgelaufen
-	if(timerReady)
-		counterState = OCR1A;
-	//wenn timer angehalten
-	else
-		counterState = TCNT1;
-
+	// Global Interrupts aktivieren
 	sei();
+}*/
 
-	//Zyklen erneuern
-	for(uint8_t i = 0; i < CHANNEL; i ++){
-
-#ifdef DEBUG3
-		while (!(UCSRA & (1<<UDRE)))  // warten bis Senden moeglich
-		{
-		}
-		UDR = fader[i].mode;
-		while (!(UCSRA & (1<<UDRE)))  // warten bis Senden moeglich
-		{}
-		UDR = fader[i].cycles;
-
-		while (!(UCSRA & (1<<UDRE)))  // warten bis Senden moeglich
-		{}
-		UDR = fader[i].factor;
-
-		while (!(UCSRA & (1<<UDRE)))  // warten bis Senden moeglich
-		{}
-		UDR = fader[i].startposition;
-
-		while (!(UCSRA & (1<<UDRE)))  // warten bis Senden moeglich
-		{}
-		UDR = fader[i].position;
-
-		while (!(UCSRA & (1<<UDRE)))  // warten bis Senden moeglich
-		{}
-		UDR = adcData[i][ADCNEWVALUE];
-#endif
-
-		if(fader[i].cycles > 0 && (fader[i].mode == SLEEP || fader[i].mode == RUN || fader[i].mode == TESTIMPULS) && i != startnum){
-			fader[i].cycles -= counterState;
-
-			//Nächsten schritt einleiten, wenn fertig
-			if(fader[i].cycles == 0){
-
-				outMessage[0] = '\0';
-				switch(fader[i].mode){
-					case SLEEP:
-						fader[i].startposition = adcData[i][ADCNEWVALUE];
-						fader[i].mode = WAITFORTEST;
-
-						if(adcData[i][ACT] < fader[i].position){
-							fader[i].flag |= (1<<DIRECTION);	//vorlaufen
-							fader[i].cycles = fader[i].factor * 10;
-						}
-						else {
-							fader[i].flag &= ~(1<<DIRECTION);	//zurücklaufen
-							fader[i].cycles = fader[i].factor * 10;
-						}
-						break;
-					case RUN:
-						stopMotor(i);
-						numFaderRunning --;
-
-
-						//Zum Beginn wird der Faktor berechnet
-						if(fader[i].flag & (1<<INITIALIZE)){
-
-							//Erfolg der Kallibirierung testen
-							if(adcData[i][ADCNEWVALUE] == 0 || adcData[i][ADCNEWVALUE] == 255){
-								//Kallibrierung stieß an 0, noch einmal starten
-								if(adcData[i][ADCNEWVALUE])
-									fader[i].flag &= ~(1<<DIRECTION);	//vorlaufen
-								else
-									fader[i].flag |= (1<<DIRECTION);	//vorlaufen
-
-
-								fader[i].startposition = adcData[i][ADCNEWVALUE];
-
-								fader[i].flag |= (1<<INITIALIZE);
-								fader[i].cycles = 65430;
-								fader[i].factor = STARTFACTOR;
-								fader[i].mode = WAITFORRUN;
-							} else {
-
-								//Faktor zum Fahren berechnen
-								fader[i].factor = (65430.0) / (adcData[i][ADCNEWVALUE] - fader[i].startposition);
-								if( fader[i].factor < 0)
-									fader[i].factor *= -1;
-
-								//Nächsten Schritt vorbereiten
-								fader[i].startposition = adcData[i][ADCNEWVALUE];
-								/*fader[i].position = 0;
-								fader[i].flag &= ~(1<<DIRECTION);	//zurücklaufen
-
-								if(adcData[i][ADCNEWVALUE] > 10){
-									//Testlauf
-									fader[i].cycles = fader[i].factor * 10;
-									fader[i].mode = WAITFORTEST;
-								} else {
-									//Direkt anfahren
-									fader[i].cycles = fader[i].factor * adcData[i][ADCNEWVALUE];
-									fader[i].mode = WAITFORRUN;
-								}*/
-
-								fader[i].position = 255;
-								fader[i].flag |= (1<<DIRECTION);	//vorlaufen
-								fader[i].cycles = fader[i].factor * (255 - adcData[i][ADCNEWVALUE]);
-								fader[i].mode = WAITFORRUN;
-
-								fader[i].flag&=~(1<<INITIALIZE);
-								fader[i].flag|=(1<<FINDMAX);
-
-							}
-						} else {
-							//normales fahren
-							fader[i].mode = ENDCONTROLL;
-						}
-						break;
-					case TESTIMPULS:
-						stopMotor(i);
-						numFaderRunning --;
-
-						fader[i].startposition = adcData[i][ADCNEWVALUE];
-						fader[i].mode = WAITFORRUN;
-
-						if(adcData[i][ACT] < fader[i].position){
-							fader[i].flag |= (1<<DIRECTION);	//vorlaufen
-							fader[i].cycles = fader[i].factor * (fader[i].position - fader[i].startposition);
-						}
-						else {
-							fader[i].flag &= ~(1<<DIRECTION);	//zurücklaufen
-							fader[i].cycles = fader[i].factor * (fader[i].startposition - fader[i].position);
-						}
-						break;
-
-				}
-			}
-		}
+#if TYPE == MOTOR_FADER
+/*void startCalibration(uint8_t i, uint8_t startValue, faderstruct * fader){
+	/*
+	 * Initialize Motorfader
+	 * Die Fader werden kalibriert, indem sie zunächst 65430 Zyklen bewegt werden
+	 * draus wird dann errechnet, wie viele Zyklen auf einen gefahrenen Wert kommen (fader[i].cycles)
+	 *//*
+	fader[i].startposition = startValue;
+	if(fader[i].startposition > 122){
+		//fader[i].flag &= ~(1<<DIRECTION);	//zurücklaufen
+		fader[i].zielposition = 0;
+	} else {
+		//fader[i].flag |= (1<<DIRECTION);	//vorlaufen
+		fader[i].zielposition = 255;
 	}
 
-
-	//kleinsten Wert ermitteln
-	uint16_t shorts = 0xffff;
-	uint8_t timerActive = 0;
-	for(uint8_t i = 0; i < CHANNEL; i ++){
-		if(fader[i].cycles < shorts && fader[i].cycles > 0){
-			shorts = fader[i].cycles;
-		}
-		if(fader[i].cycles > 0)
-			timerActive = 1;
-	}
-
-	//start timer
-	if(timerActive){
-		OCR1A = shorts;
-		TCNT1 = 0;
-		STARTTIMER;
-	}
+	fader[i].flag |= (1<<INITIALIZE);
+	fader[i].cycles = INITCYCLES;
+	fader[i].factor = 0;
+	fader[i].mode = WAITFORRUN;
+	fader[i].errorcounter = 0;
 }
 
-void gotoPosition(uint8_t i, uint8_t pos){
+/*
+ * Startet die Kalibrierung aller Fader
+ * Die Funktion nutzt fader[i].adcValue. Das setzt voraus, dass dort gültige Werte vorliegen
+ * nicht zur Erstkalibierung geeignet
+ *//*
+void startAllCalibration(faderstruct * fader){
+	for(uint8_t i = 0; i < CHANNEL; i ++){
+		startCalibration(i, fader[i].adcValue, fader);
+	}
+}*/
+
+uint8_t setFaderCycles(faderstruct* fader, uint16_t offset){
+	uint8_t olddirection = fader->motorflags & (1 << DIRECTION);
+	uint8_t dif = 0;
+	if(fader->zielposition > fader->bereinigt){
+		dif = fader->zielposition - fader->bereinigt;
+		fader->motorflags |= (1 << DIRECTION);
+	} else {
+		dif = fader->bereinigt - fader->zielposition;
+		fader->motorflags &= ~(1 << DIRECTION);
+	}
+
+	uint8_t directionchange = ((olddirection & (1 << DIRECTION) )^ (fader->motorflags & (1 << DIRECTION)));
+	if(directionchange)
+		fader->divider = fader->divider << 1;
+
+	// geometrische Reihe: Konvergiert
+	if(dif < 30){
+		fader->cycles = (uint8_t)((dif * fader->speed + offset) /(fader->divider * fader->divider)) +1;
+	} else {
+		fader->cycles = dif * fader->speed + offset;
+	}
+	return directionchange;
+}
+
+void workFader(faderstruct * fader){
+	// Änderung vom Timer abholen
+	numFaderRunning -= timerActionHappend(fader);
+
+	for(uint8_t i = 0; i < CHANNEL; i ++){
+		switch(fader[i].mode){
+			case RUN:
+
+/*#ifdef DEBUG_INIT
+				while (!(UCSRA & (1<<UDRE)))  // warten bis Senden moeglich
+				{}
+				UDR = 'R';
+#endif*/
+				//auf gültigen Wert warten
+				if(!(fader[i].valueflags & (1 << NEWVALUE)))
+					break;
+/*#ifdef DEBUG_INIT
+				while (!(UCSRA & (1<<UDRE)))  // warten bis Senden moeglich
+				{}
+				UDR = 'r';
+#endif*/
+
+				fader[i].valueflags &= ~(1 << NEWVALUE);
+
+				//Fader ist fertig
+				// Fader kommt nicht weiter. Wird er festgehalten?
+				if(fader[i].bereinigt == fader[i].zielposition
+						|| fader[i].innererrorcounter > MAXINNERRUNNINGERRORS){
+					stopMotor(i);
+					numFaderRunning --;
+					fader[i].cycles = 0;
+					fader[i].divider = 1;
+					//fader[i].innererrorcounter = 0;
+					if(fader[i].bereinigt == fader[i].zielposition){
+						fader[i].mode = CONTROL;//TODO
+						fader[i].valueflags |= (1 << NEWSTABILVALUE);
+					} else {
+						fader[i].mode = CONTROL;
+					}
+#ifdef DEBUG_INIT
+					while (!(UCSRA & (1<<UDRE)))  // warten bis Senden moeglich
+					{}
+					UDR = 'f';
+#endif
+
+					break;
+				}
+
+				//Fader muss noch weiterlaufen
+				if(setFaderCycles(&fader[i], 0)){
+					// Richtung ggf anpassen
+					setMotorStart(i, fader[i].motorflags & (1 << DIRECTION));
+				}
+				setCycles(i, fader[i].cycles);
+				fader[i].motorflags |= (1 << MOTORMOVE);
+				break;
+			case WAITFORRUN:
+#ifdef DEBUG_INIT
+					while (!(UCSRA & (1<<UDRE)))  // warten bis Senden moeglich
+					{}
+					UDR = 'W';
+#endif
+				//aktivieren
+				if(numFaderRunning < PARALLELFADER){
+					setMotorStart(i, fader[i].motorflags & (1 << DIRECTION));
+					setCycles(i, fader[i].cycles);
+					fader[i].mode = RUN;
+					numFaderRunning ++;
+					fader[i].motorflags |= (1 << MOTORMOVE);
+#ifdef DEBUG_INIT
+					while (!(UCSRA & (1<<UDRE)))  // warten bis Senden moeglich
+					{}
+					UDR = 'S';
+#endif
+				}
+				break;
+
+			case CONTROL:
+#ifdef DEBUG_INIT
+				while (!(UCSRA & (1<<UDRE)))  // warten bis Senden moeglich
+				{}
+				UDR = 'C';
+#endif
+				//auf gültigen Wert warten
+				if(!(fader[i].valueflags & (1 << NEWVALUE)))
+					break;
+				fader[i].valueflags &= ~(1 << NEWVALUE);
+
+				//fader ist fertig
+				// Fader kommt nicht weiter. Wird er festgehalten?
+				// Anhalten und wieder als Handfader betreiben
+				if(fader[i].bereinigt == fader[i].zielposition
+						|| fader[i].errorcounter > MAXRUNNINGERRORS){
+					fader[i].mode = READY;
+					fader[i].errorcounter = 0;
+					fader[i].innererrorcounter = 0;
+#ifdef DEBUG_INIT
+					while (!(UCSRA & (1<<UDRE)))  // warten bis Senden moeglich
+					{}
+					UDR = 'F';
+#endif
+					break;
+				}
+
+				//fader kam nicht vorran
+				// kurz warten
+				if(fader[i].innererrorcounter > MAXINNERRUNNINGERRORS){
+					fader[i].innererrorcounter = 0;
+					fader[i].mode = SLEEP;
+					fader[i].errorcounter ++;
+					fader[i].cycles = SLEEPCYCLES;
+					setCycles(i, fader[i].cycles);
+
+#ifdef DEBUG_INIT
+					while (!(UCSRA & (1<<UDRE)))  // warten bis Senden moeglich
+					{}
+					UDR = 'p';
+#endif
+					break;
+				}
+
+				// Fader soll weiter laufen. Neue Zyklen berechnen und weiter
+				setFaderCycles(&fader[i], STARTSTOPZYKLEN);
+				fader[i].mode = WAITFORRUN;
+
+				break;
+		}
+	}
+	timerUpdate();
+	applyMotorChanges();
+}
+
+void gotoPosition(uint8_t i, uint8_t pos, faderstruct * fader){
+#ifdef DEBUG_INIT
+	while (!(UCSRA & (1<<UDRE)))  // warten bis Senden moeglich
+	{}
+	UDR = 'G';
+#endif
+	/*
+	 * Berechne neue Position
+	 * Wenn nicht der volle Wertebereicht genutzt wird (maxvalue != 255 oder minvlaue != 0),
+	 * dann können einige Positionen nicht erreicht werden. Es wird dann ein neuer Wert berechnet
+	 * Dieser ist die nächstkleinere erreichbare Position
+	 */
+
+	//Offset an minvalue kann igoriert werden
+	/*double tmp =  255.0 / (fader[i].maxvalue - fader[i].minvalue);
+	uint8_t temp = pos / tmp;
+	pos = (temp) * tmp;*/
 
 	//wenn schon an position
-	if(pos == adcData[i][ADCNEWVALUE])
+	if(pos == fader[i].bereinigt)
 		return;
 
-	fader[i].startposition = adcData[i][ADCNEWVALUE];
-	fader[i].position = pos;
+	//prüfen ob Fader noch kalibriert wurd
+	/*if(fader[i].flag & ((1<<INITIALIZE) | (1<<FINDMAX) | (1<<FINDMIN)))
+		return;*/
 
-	fader[i].factor = 100;
+#ifdef DEBUG_INIT
+	while (!(UCSRA & (1<<UDRE)))  // warten bis Senden moeglich
+	{}
+	UDR = 'P';
+#endif
 
-	if(pos < fader[i].startposition)
+	fader[i].startposition = fader[i].bereinigt;
+	fader[i].lastposition = fader[i].bereinigt;
+	fader[i].zielposition = pos;
+
+	fader[i].divider = 1;
+
+	//fader[i].factor = 100;
+
+	/*if(pos < fader[i].startposition)
 		fader[i].flag &= ~(1<<DIRECTION);	//zurücklaufen
 	else
-		fader[i].flag |= (1<<DIRECTION);	//vorwärts
+		fader[i].flag |= (1<<DIRECTION);	//vorwärts*/
 
-	//Betrag ist kleiner 10
-	if( (((pos - adcData[i][ADCNEWVALUE]) > 10) &&( pos > adcData[i][ADCNEWVALUE]))
-			|| ((( adcData[i][ADCNEWVALUE] - pos) > 10) &&( pos < adcData[i][ADCNEWVALUE]))){
+	//Betrag ist größer 15
+	/*if(TESTMOEGLICH){
 		//Testlauf
-		fader[i].cycles = fader[i].factor * 10;
+		fader[i].cycles = fader[i].factor * 15 * TESTZYKLEN_FAKTOR + STARTSTOPZYKLEN;
 		fader[i].mode = WAITFORTEST;
-	} else {
-		//Direkt anfahren
-		fader[i].cycles = fader[i].factor * (pos - adcData[i][ADCNEWVALUE]);
-		fader[i].mode = WAITFORRUN;
+
+#ifdef DEBUG_INIT
+		while (!(UCSRA & (1<<UDRE)))  // warten bis Senden moeglich
+		{}
+		UDR = 'T';
+#endif
+	} else {*/
+
+	if(fader[i].mode == RUN){
+		//Motor kurz anhalten
+		stopMotor(i);
+		setCycles(i, 0);	// Timer interrupt verhindern
+		numFaderRunning --;	// Motor austragen
 	}
+
+	//Direkt anfahren
+	setFaderCycles(&fader[i], STARTSTOPZYKLEN);
+	fader[i].mode = WAITFORRUN;
+	//}
 
 #ifdef DEBUG2
 		while (!(UCSRA & (1<<UDRE)))  // warten bis Senden moeglich
@@ -429,7 +347,7 @@ void gotoPosition(uint8_t i, uint8_t pos){
 
 		while (!(UCSRA & (1<<UDRE)))  // warten bis Senden moeglich
 		{}
-		UDR = fader[i].position;
+		UDR = fader[i].zielposition;
 
 		while (!(UCSRA & (1<<UDRE)))  // warten bis Senden moeglich
 		{}
@@ -438,76 +356,130 @@ void gotoPosition(uint8_t i, uint8_t pos){
 }
 #endif //end MOTOR_FADER
 
-uint8_t readFader(uint8_t pin, uint8_t* mask){
-	uint8_t counter = 10;
+uint8_t readFader(uint8_t pin){
+	uint8_t counter = 0;
 	uint16_t value = 0;
 
-	//loaler alter Wert
-	uint8_t thisOldvalue = oldValue;
-	*mask &= ~(1<<NEWVALUE);
-
 	do{
-		value = readMeassure(0);
-		value = value >> 4;
-		if(thisOldvalue == value)
+		uint16_t newvalue = readMeassure(0);
+		newvalue = newvalue >> 4;
+		if(newvalue == value)
 			counter ++;
 		else{
 			counter = 0;
 		}
-		thisOldvalue = value;
-	}while(counter < 10);
-
-	if(oldValue != thisOldvalue)
-		*mask |= (1<<NEWVALUE);
-
-	oldValue = thisOldvalue;
+		value = newvalue;
+	}while(counter < ENTPRELLLEVEL);
 
 	return (uint8_t) value;
 }
 
-uint16_t testFader(uint8_t i){
-#if TYPE == MOTOR_FADER
+uint16_t testFader(uint8_t i, faderstruct * fader){
+/*#if TYPE == MOTOR_FADER
 	if(fader[i].mode != READY){
 		//daten sperren
-		fader[i].flag &= ~((1 << CLEARDATA0) | (1 << CLEARDATA1));
+		fader[i].flag &= ~(1 << CLEARDATASEND);
 	}
-#endif
+	if(fader[i].mode == RUN || fader[i].mode == WAITFORRUN || fader[i].mode == TESTIMPULS || fader[i].mode == WAITFORTEST){
+		//daten sperren
+		fader[i].flag &= ~(1 << CLEARDATAWORK);
+	}
+#endif*/
 	uint16_t initialized = 0;
 
-	//Neuer Wert
-	if(adcData[i][ADCNEWVALUE] != adcData[i][OLD]){
-		if(adcData[i][ADCNEWVALUE] == adcData[i][TEMPVALUE]){
-			adcData[i][COUNTER] ++;
+	fader[i].adcValue = adcValue[i][ADCNEWVALUE];	//Rohdaten zwischenspeichern (für Max-Min-Messungen)
+	adcValue[i][NEWVALUEFLAG] = 0;
+
+	/*
+	 * Messwert bereinigen
+	 * Maximalwert und Offset herausrechnen
+	 */
+
+	/*double tmp =  255.0 / (fader[i].maxvalue - fader[i].minvalue);
+	uint8_t bereinigt = (fader[i].adcValue - fader[i].minvalue) * tmp;
+
+	//unterlauf
+	if(fader[i].adcValue < fader[i].minvalue)
+		bereinigt = 0;
+	//overflow
+	if(fader[i].adcValue > fader[i].maxvalue)
+		bereinigt = 255;*/
+
+	uint8_t bereinigt = fader[i].adcValue;
+	//Wert weicht vom letzten entprellten Wert ab
+	if(bereinigt  != fader[i].entprellt ){
+		//Wert weicht auch von letzter Messung ab
+		if(fader[i].bereinigt == bereinigt){
+			fader[i].entprellCounter ++;
 		} else {
-			adcData[i][COUNTER] = 0;
+			fader[i].entprellCounter = 0;
 		}
 
-		adcData[i][TEMPVALUE] = adcData[i][ADCNEWVALUE];
-
 		//Entprellen
-		if(adcData[i][COUNTER] == ENTPRELLLEVEL){
-			adcData[i][OLD] = adcData[i][ACT];
-			adcData[i][ACT] = adcData[i][ADCNEWVALUE];
-			adcData[i][CHANGED] = 1;
-			adcData[i][NEWVALUEFLAG] = 0;
-			adcData[i][COUNTER] = 0;
+		if(fader[i].entprellCounter == ENTPRELLLEVEL){
+			fader[i].entprellt = fader[i].bereinigt;
+			fader[i].valueflags |= (1 << NEWSTABILVALUE);
+			fader[i].entprellCounter = 0;
+
 			initialized |= (1 << i);
 
 #if TYPE == MOTOR_FADER
-			//Motor steht, Daten sind OK
-			if(fader[i].mode == READY && (fader[i].flag & (1 << CLEARDATA0)))
-				fader[i].flag |= (1 << CLEARDATA1);
 			//Motor steht, letzte Änderung
-			else if(fader[i].mode == READY )
-				fader[i].flag |= (1 << CLEARDATA0);
+			//if(fader[i].mode == ENDCONTROLL )
+			//	fader[i].flag |= (1 << CLEARDATAWORK);
 #endif
 		}
 
 	}
+	//Wert ist gleich entprellten Wert
 	else {
-		if(adcData[i][ADCNEWVALUE] == 0)
+		fader[i].entprellCounter = 0;
+		if(fader[i].bereinigt == 0)
 			initialized |= (1 << i);
-		adcData[i][COUNTER] = 0;
+/*#if TYPE == MOTOR_FADER
+		//Motor steht, Daten sind OK
+		if(!(fader[i].mode == RUN || fader[i].mode == WAITFORRUN || fader[i].mode == TESTIMPULS || fader[i].mode == WAITFORTEST))
+			fader[i].flag |= (1 << CLEARDATAWORK);
+		if(fader[i].mode == READY && (fader[i].flag & (1 << CLEARDATAWORK)))
+			fader[i].flag |= (1 << CLEARDATASEND);
+#endif*/
+	}
+
+	// Neue Messung
+	fader[i].valueflags |= (1 << NEWVALUE);
+
+	if(fader[i].mode == RUN){
+		fader[i].time +=24;		// Wenn Fader mit 9600Hz gelesen wird, dann sind das 24 Timer Takte
+	}
+
+	if(bereinigt != fader[i].bereinigt){
+#if TYPE == MOTOR_FADER
+
+		//Geschwindigkeit berechnen, wenn der Motor an ist
+		if(fader[i].mode == RUN){
+			float s = fader[i].bereinigt;
+			s -= fader[i].lastposition;
+			if(s < 0)
+				s *= -1;
+			float newspeed = fader[i].time / s;
+			fader[i].time = 0;
+			fader[i].speed = fader[i].speed * (1- NEWVALUEPERCENTAGE) + NEWVALUEPERCENTAGE * newspeed;
+
+		}
+		// Wert hat sich geändert. Speichern für Motorfader
+		fader[i].lastposition = fader[i].bereinigt;
+		fader[i].innererrorcounter = 0;
+		fader[i].motorflags &= ~(1 << MOTORMOVE);
+#endif
+		fader[i].bereinigt = bereinigt;
+	} else {
+#if TYPE == MOTOR_FADER
+		//Keine Änderung. Wichtig für Motorfader!
+		//Fehler, wenn Motor bewegt wurde, aber keine Änderung vorliegt
+		if(fader[i].motorflags & (1 << MOTORMOVE))
+			fader[i].innererrorcounter ++;
+		fader[i].motorflags &= ~(1 << MOTORMOVE);
+#endif
 	}
 
 	return initialized;

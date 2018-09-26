@@ -10,15 +10,12 @@
 //Gemessener Wert
 static volatile uint16_t meassure = 0;
 
-//neuer Wert
-static uint8_t new = 0;
-
 //status der Übertragung
 static volatile uint8_t state = 0;
 
-volatile uint8_t adcData[CHANNEL][8];
-static volatile uint8_t oldData;
-static volatile uint8_t counter;
+//uint8_t adcData[CHANNEL][10];
+volatile uint8_t adcValue[CHANNEL][2];
+//uint8_t dummyTest = 0;
 
 
 
@@ -29,15 +26,20 @@ void initSPI(){
 	/* Enable SPI, Master, set clock rate fck/8, enable interrupt */
 	SPCR = (1<<SPE)|(1<<MSTR)|(1<<SPR0) | (1 << SPI2X);
 
+	//dummyTest = 0;
+
 	for(uint8_t i = 0; i < CHANNEL; i ++){
-		adcData[i][OLD] = 0;
-		adcData[i][ACT] = 0;
-		adcData[i][CHANGED] = 0;
-		adcData[i][NEWVALUEFLAG] = 0;
-		adcData[i][ADCNEWVALUE] = 0;
-		adcData[i][TEMPVALUE] = 0;
-		adcData[i][COUNTER] = 0;
-		adcData[i][ADCREAL] = 0;
+		adcValue[i][NEWVALUEFLAG] = 0;
+		adcValue[i][ADCNEWVALUE] = 0;
+
+		//adcData[i][OLD] = 0;
+		//adcData[i][ACT] = 0;
+		//adcData[i][CHANGED] = 0;
+		//adcData[i][TEMPVALUE] = 0;
+		//adcData[i][COUNTER] = 0;
+		//adcData[i][ADCREAL] = 0;
+		//adcData[i][MIN] = 0;
+		//adcData[i][MAX] = 0;
 	}
 
 	sei();
@@ -59,9 +61,6 @@ void startMeassure(){
 
 	SPDR = mask;
 
-	//Entprellen vorbereiten
-	counter = 10;
-	oldData = adcData[0][ACT];
 	state = 1;
 }
 
@@ -90,8 +89,14 @@ ISR(SPI_STC_vect){
 		if(pin){
 			lastPin = pin -1;
 		}
-		double tmp =  255.0 / fader[lastPin].maxvalue;
-		adcData[lastPin][ADCNEWVALUE] = ((meassure >> 4) - fader[lastPin].minvalue) * tmp;
+
+		adcValue[lastPin][ADCNEWVALUE] = meassure >> 4;
+		adcValue[lastPin][NEWVALUEFLAG] = 1;
+
+		/*in Fader.c
+		 * adcData[lastPin][ADCREAL] = meassure >> 4;
+		//double tmp =  255.0 / fader[lastPin].maxvalue;
+		adcData[lastPin][ADCNEWVALUE] = meassure >> 4;//((meassure >> 4) - fader[lastPin].minvalue) * tmp;
 		adcData[lastPin][ADCREAL] = meassure >> 4;
 		adcData[lastPin][NEWVALUEFLAG] = 1;
 
@@ -100,7 +105,7 @@ ISR(SPI_STC_vect){
 			adcData[lastPin][ADCNEWVALUE] = 0;
 		//overflow
 		if((adcData[lastPin][ADCREAL] > 230) && (adcData[lastPin][ADCNEWVALUE] < 20))
-			adcData[lastPin][ADCNEWVALUE] = 255;
+			adcData[lastPin][ADCNEWVALUE] = 255;*/
 
 		//nächsten Wert speichern
 
@@ -136,15 +141,6 @@ ISR(SPI_STC_vect){
 	state ++;
 	if(state == (CHANNEL * 3))
 		state = 0;
-}
-
-uint8_t newMessage(){
-	return new;
-}
-
-uint8_t getMeassure(){
-	new = 0;
-	return meassure;
 }
 
 /**

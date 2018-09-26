@@ -10,13 +10,13 @@
 
 #include "../main.h"
 
-#if TYPE == ONLY_FADER
+#if TYPE == MOTOR_FADER
 #define SHIFT_DDR DDRC
 #define SHIFT_PORT PORTC
 
-#define SHIFT_DATA 2
-#define SHIFT_PS 1
-#define SHIFT_CLK 0
+#define SHIFT_DATA 3
+#define SHIFT_PS 5
+#define SHIFT_CLK 4
 
 void shift();
 void init_shift();

@@ -11,18 +11,21 @@
 #define ONLY_FADER 1
 #define MOTOR_FADER 2
 
-#define TYPE ONLY_FADER
+#define GERAET MOTOR_FADER //ONLY_FADER //
+
 
 /*
  * input here the number of channels and the first address
  */
 
-#if TYPE == MOTOR_FADER
-#define CHANNEL			2
+#if GERAET == MOTOR_FADER
+#define CHANNEL			8
 #define STARTADDRESS	0
-#elif TYPE == ONLY_FADER
-#define CHANNEL			16
+#define TYPE MOTOR_FADER
+#elif GERAET == ONLY_FADER
+#define CHANNEL			14
 #define STARTADDRESS	8
+#define TYPE ONLY_FADER
 #endif
 
 #endif /* TYPE_H_ */

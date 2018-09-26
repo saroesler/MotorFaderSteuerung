@@ -9,13 +9,13 @@
 #define MAIN_H_
 
 #define ENTPRELLLEVEL 10
-#define PARALLELFADER 4
+#define PARALLELFADER 2
 
 
 #define LED 0
 
-#include "type.h"
 #include <avr/io.h>
+#include "type.h"
 #include <stdint.h>
 #include <avr/interrupt.h>
 #include <stdlib.h>
@@ -35,7 +35,7 @@
  * Wenn SHOWALL nicht definiert ist, werden Änderungen, die durch den
  * Motor entstehen unterdrückt
  */
-#define SHOWALL
+//#define SHOWALL
 
 /*
  * Wenn DEBUG definiert ist, werden DEBUG-Inhalte über den UART gesendet
@@ -43,5 +43,13 @@
 //#define DEBUG
 //#define DEBUG2
 //#define DEBUG3
+//#define DEBUG_INIT
+
+//UART auf DEBUG schalten: (nur ein Slave im Bus)
+#define UART_DEBUGMODE
+
+#define LED_OFF PORTB &= ~(1<< LED);
+#define LED_ON  PORTB |=  (1<< LED);
+
 
 #endif /* MAIN_H_ */

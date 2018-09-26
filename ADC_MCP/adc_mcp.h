@@ -24,14 +24,19 @@
 /*
  * Array flags
  */
+#define NEWVALUEFLAG 0	//get new value by the adc
+#define ADCNEWVALUE 1	//the value, read by the adc last time
+
+/*
 #define ACT 0			//actual debounced value
 #define OLD 1			//previous debounced value
 #define CHANGED 2		//get new debounced value to work it
-#define NEWVALUEFLAG 3	//get new value by the adc
-#define ADCNEWVALUE 4	//the value, read by the adc last time
 #define TEMPVALUE 5		//last value, without debounce (de:Entprellen)
 #define COUNTER 6		//debounce counter (de:Entprellen)
 #define ADCREAL 7		//unbereinigte Messwerte (ohne max- min Anpassung)
+#define MIN 8		//unbereinigte Messwerte (ohne max- min Anpassung)
+#define MAX 9		//unbereinigte Messwerte (ohne max- min Anpassung)*/
+
 
 void initSPI(void);
 
@@ -48,6 +53,8 @@ uint8_t getValue(void);
  */
 uint16_t readMeassure(uint8_t pin);
 
-extern volatile uint8_t adcData[CHANNEL][8];
+//extern uint8_t adcData[CHANNEL][10];
+extern volatile uint8_t adcValue[CHANNEL][2];
+//extern uint8_t dummyTest;
 
 #endif /* ADC_MCP_H_ */

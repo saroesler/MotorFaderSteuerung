@@ -25,13 +25,15 @@ void minisend(char* data, uint8_t i){
 }
 
 int main(void){
+
+	faderstruct fader[CHANNEL];
 	initSPI();
 	uart_init();
 	init();
 #if TYPE == MOTOR_FADER
 	init_shift();
 #endif
-	initFader();
+	initFader(fader);
 
 	_delay_ms(1000);
 	outMessage[0] = 'H';
@@ -39,14 +41,19 @@ int main(void){
 	outMessage[2] = 'L';
 	outMessage[3] = 'L';
 	outMessage[4] = 'O';
+	outMessage[5] = '\n';
 	outMessage[5] = '\0';
-	numOutMessage = 5;
+	numOutMessage = 6;
 	iOutMessage = 0;
+
+	//Warten bis Bus frei ist
+	while(!reserveBus());
 	sendMessage();
+	//warten bis Nachricht gesendet wurde
+	while(numOutMessage != 0);
+	//Bus freigeben
+	freeBus();
 
-	//while(!(uartFlag & (1<<SENDET)));TODO
-
-	_delay_ms(1000);
 	/*uint8_t mask = 0;
 	uint8_t startValue = readFader(0, &mask);
 	uint8_t timefactor = 0;
@@ -83,8 +90,10 @@ int main(void){
 	}
 #endif
 
+	// initialzied zeigt an, ob stabile ADC-Werte vorliegen
 	uint16_t initialzied = 0;
 	uint8_t newMessage = 0;
+
 	while(1){
 
 
@@ -94,60 +103,83 @@ int main(void){
 
 		if(numInMessage != 0){
 
-			PORTB &= ~(1<<0);
-
 			//_delay_ms(10);
+			/*for(uint8_t i = 0; inMessage[i]; i ++){
+				outMessage[i] = inMessage[i];
+			}
+
+			outMessage[numInMessage-2] = '\0';
+			numOutMessage = numInMessage-1;
+			while(!reserveBus());
+			sendMessage();
+
+			while(numOutMessage != 0);
+			freeBus();*/
+
 
 			switch(inMessage[0]){
 
 #if TYPE == MOTOR_FADER
+				/*case 'i':
+					startAllCalibration(fader);
+					break;*/
 				case 'm':
-					allowSending = 0;
+				{
+#ifdef UART_INIT
+					while (!(UCSRA & (1<<UDRE)))  // warten bis Senden moeglich
+					{}
+					UDR = 'M';
+#endif
+					//allowSending = 0;
 
 					//Fader auf Position setzen (move)
 
 					//string durchsuchen ';' trennt befehle, ':' trennt fader nummer von fader wert
 
 					//solange nachrichten da sind
-					char* pt2 = inMessage + 1;
+					char *pt2 = inMessage + 1;
 					while(pt2 != NULL){
-
-						//':'-suchen
-						char* pt1 = strstr(pt2, ":");
-
-						//Bei Fehler abbrechen
-						if(pt1 == NULL)
-							break;
-
-						//Fadernummer ausschneiden
-						char subbuff[5];
-						strncpy( subbuff, pt2, (pt1 - pt2) );
-						subbuff[4] = '\0';
-
-						uint8_t num = atoi(subbuff) - STARTADDRESS;
-
-						//Faderwert ausschneiden
-						pt2 = strstr(pt1, ";");
-
-						if(pt2 == NULL){
-							strncpy( subbuff, (pt1 + 1), (inMessage + numInMessage - pt1 -1) );
-						} else {
-							strncpy( subbuff, (pt1 + 1), (pt2 - pt1 -1) );
+						uint8_t channel = 0;
+						uint8_t value = 0;
+						pt2 = splitMessage(pt2, &channel, &value);
+						if(pt2){
+							gotoPosition(channel - STARTADDRESS, value, fader);
 						}
-						subbuff[4] = '\0';
 
-						uint8_t value = atoi(subbuff);
-
-						gotoPosition(num, value);
 					}
 					break;
+				}
 #else
 				//set fader max level
 				case 'n':
+				{
+					LED_OFF;
+					char *pt2 = inMessage + 1;
+					while(pt2 != NULL){
+						uint8_t channel = 0;
+						uint8_t value = 0;
+						pt2 = splitMessage(pt2, &channel, &value);
+						if(pt2){
+							fader[channel].minvalue = value;
+						}
+					}
 					break;
+				}
 				//set fader min level
 				case 'o':
-					break;
+				{
+					LED_ON;
+					char *pt2 = inMessage + 1;
+						while(pt2 != NULL){
+							uint8_t channel = 0;
+							uint8_t value = 0;
+							pt2 = splitMessage(pt2, &channel, &value);
+							if(pt2){
+								fader[channel].maxvalue = value;
+							}
+						}
+						break;
+					}
 #endif
 #ifndef UART_STATE_WIRE_MODE
 				case 's':
@@ -167,52 +199,74 @@ int main(void){
 #if TYPE == MOTOR_FADER
 		/*
 		 * Steuerung der Motorfader
+		 * erst wenn stabile ADC Daten von allen Fadern vorliegen
 		 */
 		if(initialzied == initref){
-			if(timerReady){
-				setTimer(CHANNEL);
+			// Wenn Timer abgelaufen ist
+			/*if(timerReady){
+				setTimer(CHANNEL, fader);
 				timerReady = 0;
-			}
-			workFader();
+			}*/
+			workFader(fader);
 		}
 #endif
 
 		/*
 		 * Fader auslesen und Änderungsstring bereitstellen
 		 */
-		char Buffer[4] = "";
+		char Buffer[33] = "";
 		for(uint8_t i = 0; i < CHANNEL; i ++){
-			//Initializes Motorfader
-			if(adcData[i][NEWVALUEFLAG]){
-				initialzied |= testFader(i);
-				adcData[i][NEWVALUEFLAG] = 0;
+			//ADC hat neuen Messung durchgeführt
+			if(adcValue[i][NEWVALUEFLAG]){
+				initialzied |= testFader(i, fader);
+				adcValue[i][NEWVALUEFLAG] = 0;
+
+/*#ifdef DEBUG_INIT
+				while (!(UCSRA & (1<<UDRE)))  // warten bis Senden moeglich
+				{}
+				UDR = 'L';
+#endif*/
 			}
 #ifdef SHOWALL
 #ifndef UART_STATE_WIRE_MODE
-			if(adcData[i][CHANGED] == 1 && allowSending && numOutMessage == 0){
+			if(fader[i].entprelledChange == 1 && allowSending && numOutMessage == 0){
 #else
-			if(adcData[i][CHANGED] == 1 && numOutMessage == 0){
+			//neuer Wert und Sendestring ist frei
+			if(fader[i].entprelledChange == 1 && numOutMessage == 0){
 #endif
 #else
 #ifndef UART_STATE_WIRE_MODE
-			if(adcData[i][CHANGED] == 1 && fader[i].flag & (1<< CLEARDATA1) && allowSending && numOutMessage == 0){
+			if(fader[i].entprelledChange == 1 && fader[i].flag & (1<< CLEARDATA1) && allowSending && numOutMessage == 0){
 #else
-			if(adcData[i][CHANGED] == 1 && fader[i].flag & (1<< CLEARDATA1) && numOutMessage == 0){
+			if((fader[i].valueflags & (1 << NEWSTABILVALUE)) &&
+#if TYPE == MOTOR_FADER
+					(fader[i].mode  == READY || fader[i].mode  == SLEEP) &&
+#endif
+					numOutMessage == 0){
 #endif
 #endif
 
+				//adcData[i][MIN] = 0;
+				//adcData[i][MAX] = 0;
 				//Trennzeichen im String
 				if(strlen(outMessage) > 0)
 					strcat(outMessage, ";");
 				itoa(i + STARTADDRESS, Buffer, 10);
 				strcat(outMessage, Buffer);	//geht immer
 				strcat(outMessage, ":"); 	//sendet :, wenn motor nicht an war
-				itoa(adcData[i][ACT], Buffer, 10);
+				itoa(fader[i].entprellt, Buffer, 10);
 				strcat(outMessage, Buffer);	//geht immer
+				strcat(outMessage, "|");	//geht immer
+				itoa(fader[i].minvalue, Buffer, 10);
+				strcat(outMessage, Buffer);	//geht immer
+				strcat(outMessage, "-");	//geht immer
+				itoa(fader[i].maxvalue, Buffer, 10);
+				strcat(outMessage, Buffer);	//geht immer
+				strcat(outMessage, "\n");	//geht immer
 
 				numOutMessage = strlen(outMessage);
 
-				adcData[i][CHANGED] = 0;
+				fader[i].valueflags &= ~(1 << NEWSTABILVALUE);
 
 				newMessage = 1;
 			}

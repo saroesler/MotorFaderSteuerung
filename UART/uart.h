@@ -8,6 +8,7 @@
 #ifndef UART_H_
 #define UART_H_
 
+#include <stdint.h>
 #include "../main.h"
 
 //Zähler um zusendene Nachricht zu durchwandern
@@ -25,7 +26,7 @@ extern volatile uint8_t interrupt;
 //Sendeerlaubnis
 extern volatile uint8_t allowSending;
 
-extern volatile char outMessage[20];
+extern volatile char outMessage[100];
 extern volatile char inMessage[20];
 
 #define BAUD 9600
@@ -54,12 +55,13 @@ extern volatile char inMessage[20];
 
 #define ENABLE_UART_TX UCSRB |= (1<<TXEN) | (1<<TXCIE)
 #define DISABLE_UART_TX UCSRB &=~( (1<<TXEN) | (1<<TXCIE))
-#define TX_TO_INPUT		UART_STATE_DDR |= (1 << TXD)
+#define TX_TO_INPUT		UART_STATE_DDR &= ~(1 << TXD)
 
 
 void uart_init(void);
 void sendMessage(void);
 uint8_t reserveBus(void);
 void freeBus(void);
+char* splitMessage(char*, uint8_t*, uint8_t *);
 
 #endif /* UART_H_ */
