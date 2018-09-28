@@ -51,12 +51,12 @@
 //#define PUSHBOTTOM	1//steiß unten an
 
 
-#define MAXRUNNINGERRORS 80		//Anzahl an Fehlanläufen für eine Position, nach dem der Fader neu kalibiert werden soll
+#define MAXRUNNINGERRORS 20		//Anzahl an Fehlanläufen für eine Position, nach dem der Fader neu kalibiert werden soll
 #define MAXINNERRUNNINGERRORS 10		//Anzahl an Fehlanläufen für eine Position, nach dem der Fader neu kalibiert werden soll
 //#define TESTZYKLEN_FAKTOR 1.1	//Faktor, der bei der Berechnung der Testzyklen eine Rolle spielt
 #define STARTSTOPZYKLEN		120	//Zyklen, die benötigt werden, um Fader zu starten / zu stoppen
 #define INITCYCLES 100
-#define SLEEPCYCLES 230400	//zyklen, die der Fader schläft
+#define SLEEPCYCLES 115200	//zyklen, die der Fader schläft
 #define NEWVALUEPERCENTAGE	20
 
 //#define TESTMOEGLICH	( (((fader[i].zielposition - fader[i].bereinigt) > 15) &&( fader[i].zielposition > fader[i].bereinigt)) || ((( fader[i].bereinigt - fader[i].zielposition) > 15) &&( fader[i].zielposition < fader[i].bereinigt)))

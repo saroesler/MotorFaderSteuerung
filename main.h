@@ -13,6 +13,7 @@
 
 
 #define LED 0
+#define NUMINPUFFER	10
 
 #include <avr/io.h>
 #include "type.h"
@@ -46,7 +47,7 @@
 //#define DEBUG_INIT
 
 //UART auf DEBUG schalten: (nur ein Slave im Bus)
-#define UART_DEBUGMODE
+//#define UART_DEBUGMODE
 
 #define LED_OFF PORTB &= ~(1<< LED);
 #define LED_ON  PORTB |=  (1<< LED);

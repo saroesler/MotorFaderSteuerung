@@ -101,99 +101,101 @@ int main(void){
 		 * Uart Empfangen
 		 */
 
-		if(numInMessage != 0){
+		for(uint8_t pufferi = 0; pufferi < NUMINPUFFER; pufferi ++){
+			if(numInMessage[pufferi] != 0){
 
-			//_delay_ms(10);
-			/*for(uint8_t i = 0; inMessage[i]; i ++){
-				outMessage[i] = inMessage[i];
-			}
-
-			outMessage[numInMessage-2] = '\0';
-			numOutMessage = numInMessage-1;
-			while(!reserveBus());
-			sendMessage();
-
-			while(numOutMessage != 0);
-			freeBus();*/
-
-
-			switch(inMessage[0]){
-
-#if TYPE == MOTOR_FADER
-				/*case 'i':
-					startAllCalibration(fader);
-					break;*/
-				case 'm':
-				{
-#ifdef UART_INIT
-					while (!(UCSRA & (1<<UDRE)))  // warten bis Senden moeglich
-					{}
-					UDR = 'M';
-#endif
-					//allowSending = 0;
-
-					//Fader auf Position setzen (move)
-
-					//string durchsuchen ';' trennt befehle, ':' trennt fader nummer von fader wert
-
-					//solange nachrichten da sind
-					char *pt2 = inMessage + 1;
-					while(pt2 != NULL){
-						uint8_t channel = 0;
-						uint8_t value = 0;
-						pt2 = splitMessage(pt2, &channel, &value);
-						if(pt2){
-							gotoPosition(channel - STARTADDRESS, value, fader);
-						}
-
-					}
-					break;
+				//_delay_ms(10);
+				/*for(uint8_t i = 0; inMessage[i]; i ++){
+					outMessage[i] = inMessage[i];
 				}
-#else
-				//set fader max level
-				case 'n':
-				{
-					LED_OFF;
-					char *pt2 = inMessage + 1;
-					while(pt2 != NULL){
-						uint8_t channel = 0;
-						uint8_t value = 0;
-						pt2 = splitMessage(pt2, &channel, &value);
-						if(pt2){
-							fader[channel].minvalue = value;
+
+				outMessage[numInMessage-2] = '\0';
+				numOutMessage = numInMessage-1;
+				while(!reserveBus());
+				sendMessage();
+
+				while(numOutMessage != 0);
+				freeBus();*/
+
+
+				switch(inMessage[pufferi][0]){
+
+	#if TYPE == MOTOR_FADER
+					/*case 'i':
+						startAllCalibration(fader);
+						break;*/
+					case 'm':
+					{
+	#ifdef UART_INIT
+						while (!(UCSRA & (1<<UDRE)))  // warten bis Senden moeglich
+						{}
+						UDR = 'M';
+	#endif
+						//allowSending = 0;
+
+						//Fader auf Position setzen (move)
+
+						//string durchsuchen ';' trennt befehle, ':' trennt fader nummer von fader wert
+
+						//solange nachrichten da sind
+						char *pt2 = inMessage[pufferi] + 1;
+						while(pt2 != NULL){
+							uint8_t channel = 0;
+							uint8_t value = 0;
+							pt2 = splitMessage(pt2, &channel, &value, inMessage[pufferi], &numInMessage[pufferi]);
+							if(pt2){
+								gotoPosition(channel - STARTADDRESS, value, fader);
+							}
+
 						}
+						break;
 					}
-					break;
-				}
-				//set fader min level
-				case 'o':
-				{
-					LED_ON;
-					char *pt2 = inMessage + 1;
+	#else
+					//set fader max level
+					case 'n':
+					{
+						LED_OFF;
+						char *pt2 = inMessage + 1;
 						while(pt2 != NULL){
 							uint8_t channel = 0;
 							uint8_t value = 0;
 							pt2 = splitMessage(pt2, &channel, &value);
 							if(pt2){
-								fader[channel].maxvalue = value;
+								fader[channel].minvalue = value;
 							}
 						}
 						break;
 					}
-#endif
-#ifndef UART_STATE_WIRE_MODE
-				case 's':
-					//Slaves können senden
-					if(inMessage[1] == SLAVEID)
-						allowSending = 1;
-					else
-						allowSending = 0;
-					break;
-#endif
+					//set fader min level
+					case 'o':
+					{
+						LED_ON;
+						char *pt2 = inMessage + 1;
+							while(pt2 != NULL){
+								uint8_t channel = 0;
+								uint8_t value = 0;
+								pt2 = splitMessage(pt2, &channel, &value);
+								if(pt2){
+									fader[channel].maxvalue = value;
+								}
+							}
+							break;
+						}
+	#endif
+	#ifndef UART_STATE_WIRE_MODE
+					case 's':
+						//Slaves können senden
+						if(inMessage[1] == SLAVEID)
+							allowSending = 1;
+						else
+							allowSending = 0;
+						break;
+	#endif
 
+				}
+				inMessage[pufferi][0] = '\0';
+				numInMessage[pufferi] = 0;
 			}
-			inMessage[0] = '\0';
-			numInMessage = 0;
 		}
 
 #if TYPE == MOTOR_FADER

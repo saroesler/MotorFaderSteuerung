@@ -19,7 +19,7 @@ extern volatile uint8_t numOutMessage;
 //Zähler um zusendene Nachricht zu durchwandern
 extern volatile uint8_t iInMessage;
 //Länge der zusendenen Nachricht
-extern volatile uint8_t numInMessage;
+extern volatile uint8_t numInMessage[NUMINPUFFER];
 
 extern volatile uint8_t interrupt;
 
@@ -27,7 +27,7 @@ extern volatile uint8_t interrupt;
 extern volatile uint8_t allowSending;
 
 extern volatile char outMessage[100];
-extern volatile char inMessage[20];
+extern volatile char inMessage[NUMINPUFFER][20];
 
 #define BAUD 9600
 
@@ -62,6 +62,6 @@ void uart_init(void);
 void sendMessage(void);
 uint8_t reserveBus(void);
 void freeBus(void);
-char* splitMessage(char*, uint8_t*, uint8_t *);
+char* splitMessage(char*, uint8_t*, uint8_t *, volatile char* message, volatile uint8_t* numinmessage);
 
 #endif /* UART_H_ */

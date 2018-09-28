@@ -10,21 +10,44 @@
 #include "uart.h"
 
 volatile uint8_t interrupt = 1;
+volatile uint8_t puffercount = 0;
 
 ISR(USART_RXC_vect)
 {
 	char data = UDR;
 
 	//nur speichern, wenn Wartschlange frei ist
-	if((data == '\0' || data == 0x0A || (data >= 0x20 && data <= 0x7d)) && (numInMessage == 0)){
-		inMessage[iInMessage] = data;
+	if((data == '\0' || data == 0x0A || (data >= 0x20 && data <= 0x7d)) && (numInMessage[puffercount] == 0)){
+		inMessage[puffercount][iInMessage] = data;
 		iInMessage ++;
 
 		if(data == '\0' || data == 0x0A){
-			inMessage[iInMessage] = '\0';
-			numInMessage = iInMessage;
+			inMessage[puffercount][iInMessage] = '\0';
+			numInMessage[puffercount] = iInMessage;
 			iInMessage = 0;
+
+			//suche nächsten freien Puffer
+			uint8_t i = puffercount +1;
+			while(i != puffercount){
+				if(inMessage[i][0] == '\0')
+					break;
+				i ++;
+				if(i >= NUMINPUFFER)
+					i = 0;
+			}
+			puffercount = i;
 		}
+	} else {
+		//suche nächsten freien Puffer
+		uint8_t i = puffercount +1;
+		while(i != puffercount){
+			if(inMessage[i][0] == '\0')
+				break;
+			i ++;
+			if(i >= NUMINPUFFER)
+				i = 0;
+		}
+		puffercount = i;
 	}
 }
 
@@ -63,6 +86,11 @@ void uart_init(void)
 	 */
 	UART_STATE_DDR |=  (1 << UART_STATE_OUT);
 	UART_STATE_DDR &= ~(1 << UART_STATE_IN);
+
+	for(uint8_t i = 0; i < NUMINPUFFER; i ++){
+		inMessage[i][0] = '\0';
+		numInMessage[i] = 0;
+	}
 #ifdef UART_DEBUGMODE
 	ENABLE_UART_TX;				//enable uart transmitter
 #endif
@@ -117,7 +145,7 @@ void freeBus(void){
  * If it is NULL, its the end of the string. Value and channel number are usable.
  * If there is an error it returns NULL.
  */
-char* splitMessage(char* begin, uint8_t* channel, uint8_t* value){
+char* splitMessage(char* begin, uint8_t* channel, uint8_t* value, volatile char* message, volatile uint8_t* numinmessage){
 	//':'-suchen - Trennzeichen zwischen Kanal und Wert
 	char* posDoppelPunkt = strstr(begin, ":");
 
@@ -141,7 +169,7 @@ char* splitMessage(char* begin, uint8_t* channel, uint8_t* value){
 	* sonst geht der Wert bis zum ';'
 	*/
 	if(endChar == NULL){
-		strncpy( subbuff, (posDoppelPunkt + 1), (inMessage + numInMessage - posDoppelPunkt -1) );
+		strncpy( subbuff, (posDoppelPunkt + 1), (message + *numinmessage - posDoppelPunkt -1) );
 		//gib Zeichen nach Doppelpunkt zurück. Nächster splitMessage-Aufruf gibt Fehler zurück
 		begin = posDoppelPunkt +1;
 	} else {

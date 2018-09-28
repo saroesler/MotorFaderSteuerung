@@ -134,11 +134,11 @@ void workFader(faderstruct * fader){
 		switch(fader[i].mode){
 			case RUN:
 
-/*#ifdef DEBUG_INIT
+#ifdef DEBUG_INIT
 				while (!(UCSRA & (1<<UDRE)))  // warten bis Senden moeglich
 				{}
 				UDR = 'R';
-#endif*/
+#endif
 				//auf gültigen Wert warten
 				if(!(fader[i].valueflags & (1 << NEWVALUE)))
 					break;
